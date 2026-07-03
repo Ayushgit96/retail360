@@ -17,6 +17,19 @@ const SUPPLIER_POPULATE = {
   select: 'name supplierCode supplierId email phone contactPerson',
 };
 
+async function resolveProductHsnCode(body, fallbackCategoryId) {
+  if (body.hsnCode && String(body.hsnCode).trim()) {
+    return String(body.hsnCode).trim();
+  }
+  const categoryId = body.category || fallbackCategoryId;
+  if (!categoryId) return null;
+  const category = await Category.findById(categoryId).select('hsnCode').lean();
+  if (category?.hsnCode && String(category.hsnCode).trim()) {
+    return String(category.hsnCode).trim();
+  }
+  return null;
+}
+
 // File management utilities
 const UPLOADS_DIR = path.join(__dirname, '..', 'uploads', 'products');
 
@@ -598,7 +611,15 @@ router.post('/', async (req, res) => {
     if (!req.body.slno || req.body.slno === '' || req.body.slno === null || req.body.slno === undefined) {
       req.body.slno = await generateNextSerialNumber();
     }
-    
+
+    const hsnCode = await resolveProductHsnCode(req.body);
+    if (!hsnCode) {
+      return res.status(400).json({
+        error: 'HSN Code is required. Select a category that has an HSN code defined.',
+      });
+    }
+    req.body.hsnCode = hsnCode;
+
     const product = new Product(req.body);
     await product.save();
     
@@ -644,7 +665,15 @@ router.put('/:id', async (req, res) => {
     if (req.body.sku) {
       req.body.sku = String(req.body.sku).trim();
     }
-    
+
+    const hsnCode = await resolveProductHsnCode(req.body, oldProduct.category);
+    if (!hsnCode) {
+      return res.status(400).json({
+        error: 'HSN Code is required. Select a category that has an HSN code defined.',
+      });
+    }
+    req.body.hsnCode = hsnCode;
+
     const oldSku = oldProduct.sku;
     const newSku = req.body.sku;
     

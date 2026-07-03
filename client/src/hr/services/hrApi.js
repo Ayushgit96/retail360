@@ -1,67 +1,60 @@
-import axios from 'axios';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-
-const hrApi = axios.create({
-  baseURL: `${API_BASE_URL}/hr`,
-  headers: { 'Content-Type': 'application/json' },
-});
+import api from '../../services/api';
 
 export const hrDashboardAPI = {
-  getStats: () => hrApi.get('/dashboard'),
+  getStats: () => api.get('/hr/dashboard'),
 };
 
 export const hrEmployeesAPI = {
-  getAll: (params) => hrApi.get('/employees', { params }),
-  getDepartments: () => hrApi.get('/employees/departments/list'),
-  getById: (id) => hrApi.get(`/employees/${id}`),
-  create: (data) => hrApi.post('/employees', data),
-  update: (id, data) => hrApi.put(`/employees/${id}`, data),
-  delete: (id) => hrApi.delete(`/employees/${id}`),
+  getAll: (params) => api.get('/hr/employees', { params }),
+  getDepartments: () => api.get('/hr/employees/departments/list'),
+  getById: (id) => api.get(`/hr/employees/${id}`),
+  create: (data) => api.post('/hr/employees', data),
+  update: (id, data) => api.put(`/hr/employees/${id}`, data),
+  delete: (id) => api.delete(`/hr/employees/${id}`),
 };
 
 export const hrAttendanceAPI = {
-  getAll: (params) => hrApi.get('/attendance', { params }),
-  getSummary: (params) => hrApi.get('/attendance/summary', { params }),
-  getTrend: (params) => hrApi.get('/attendance/trend', { params }),
-  getById: (id) => hrApi.get(`/attendance/${id}`),
-  create: (data) => hrApi.post('/attendance', data),
-  update: (id, data) => hrApi.put(`/attendance/${id}`, data),
-  delete: (id) => hrApi.delete(`/attendance/${id}`),
+  getAll: (params) => api.get('/hr/attendance', { params }),
+  getSummary: (params) => api.get('/hr/attendance/summary', { params }),
+  getTrend: (params) => api.get('/hr/attendance/trend', { params }),
+  getById: (id) => api.get(`/hr/attendance/${id}`),
+  create: (data) => api.post('/hr/attendance', data),
+  update: (id, data) => api.put(`/hr/attendance/${id}`, data),
+  delete: (id) => api.delete(`/hr/attendance/${id}`),
 };
 
 export const hrLeavesAPI = {
-  getPolicies: () => hrApi.get('/leaves/policies'),
-  getBalances: (params) => hrApi.get('/leaves/balances', { params }),
-  getAll: (params) => hrApi.get('/leaves', { params }),
-  getById: (id) => hrApi.get(`/leaves/${id}`),
-  create: (data) => hrApi.post('/leaves', data),
-  update: (id, data) => hrApi.put(`/leaves/${id}`, data),
-  approve: (id, data) => hrApi.post(`/leaves/${id}/approve`, data),
-  reject: (id, data) => hrApi.post(`/leaves/${id}/reject`, data),
-  cancel: (id, data) => hrApi.post(`/leaves/${id}/cancel`, data),
-  delete: (id) => hrApi.delete(`/leaves/${id}`),
+  getPolicies: () => api.get('/hr/leaves/policies'),
+  getBalances: (params) => api.get('/hr/leaves/balances', { params }),
+  getAll: (params) => api.get('/hr/leaves', { params }),
+  getById: (id) => api.get(`/hr/leaves/${id}`),
+  create: (data) => api.post('/hr/leaves', data),
+  update: (id, data) => api.put(`/hr/leaves/${id}`, data),
+  approve: (id, data) => api.post(`/hr/leaves/${id}/approve`, data),
+  reject: (id, data) => api.post(`/hr/leaves/${id}/reject`, data),
+  cancel: (id, data) => api.post(`/hr/leaves/${id}/cancel`, data),
+  delete: (id) => api.delete(`/hr/leaves/${id}`),
 };
 
 export const hrPayrollAPI = {
-  getAll: (params) => hrApi.get('/payroll', { params }),
-  getSummary: (params) => hrApi.get('/payroll/summary', { params }),
-  getById: (id) => hrApi.get(`/payroll/${id}`),
-  generate: (data) => hrApi.post('/payroll/generate', data),
-  update: (id, data) => hrApi.put(`/payroll/${id}`, data),
-  delete: (id) => hrApi.delete(`/payroll/${id}`),
+  getAll: (params) => api.get('/hr/payroll', { params }),
+  getSummary: (params) => api.get('/hr/payroll/summary', { params }),
+  getById: (id) => api.get(`/hr/payroll/${id}`),
+  generate: (data) => api.post('/hr/payroll/generate', data),
+  update: (id, data) => api.put(`/hr/payroll/${id}`, data),
+  delete: (id) => api.delete(`/hr/payroll/${id}`),
 };
 
 export const hrHolidaysAPI = {
-  getAll: (params) => hrApi.get('/holidays', { params }),
-  getCalendar: (params) => hrApi.get('/holidays/calendar', { params }),
-  getStandardYears: () => hrApi.get('/holidays/standard-years'),
-  seedStandard: (year) => hrApi.post('/holidays/seed-standard', { year }),
-  seedRestricted: (year) => hrApi.post('/holidays/seed-standard', { year }),
-  getById: (id) => hrApi.get(`/holidays/${id}`),
-  create: (data) => hrApi.post('/holidays', data),
-  update: (id, data) => hrApi.put(`/holidays/${id}`, data),
-  delete: (id) => hrApi.delete(`/holidays/${id}`),
+  getAll: (params) => api.get('/hr/holidays', { params }),
+  getCalendar: (params) => api.get('/hr/holidays/calendar', { params }),
+  getStandardYears: () => api.get('/hr/holidays/standard-years'),
+  seedStandard: (year) => api.post('/hr/holidays/seed-standard', { year }),
+  seedRestricted: (year) => api.post('/hr/holidays/seed-standard', { year }),
+  getById: (id) => api.get(`/hr/holidays/${id}`),
+  create: (data) => api.post('/hr/holidays', data),
+  update: (id, data) => api.put(`/hr/holidays/${id}`, data),
+  delete: (id) => api.delete(`/hr/holidays/${id}`),
 };
 
-export default hrApi;
+export default api;

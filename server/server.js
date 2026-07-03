@@ -42,6 +42,14 @@ mongoose.connect(MONGODB_URI, {
     if (permResult.created > 0) {
       console.log(`Seed: ${permResult.created} permissions created`);
     }
+    const { seedRoles } = require('./utils/seedRoles');
+    const roleResult = await seedRoles();
+    if (roleResult.created > 0) {
+      console.log(`Seed: ${roleResult.created} roles created (admin, hr, accounts, warehouse)`);
+    }
+    if (roleResult.updated > 0) {
+      console.log(`Seed: ${roleResult.updated} roles updated`);
+    }
     const { seedSuperAdmin } = require('./utils/seedAdmin');
     const result = await seedSuperAdmin();
     if (result.skipped) {

@@ -18,15 +18,21 @@ async function seedSuperAdmin() {
         name: 'Full Admin',
         code: 'admin.all',
         module: 'admin',
-        description: 'Full system access'
+        description: 'Full system access',
       });
     }
-    const role = await Role.create({
-      name: 'Super Admin',
-      code: 'super_admin',
-      description: 'Administrator with full access',
-      permissions: [perm._id]
-    });
+    let role = await Role.findOne({ code: 'admin' });
+    if (!role) {
+      role = await Role.findOne({ code: 'super_admin' });
+    }
+    if (!role) {
+      role = await Role.create({
+        name: 'Admin',
+        code: 'admin',
+        description: 'Full system administrator',
+        permissions: [perm._id],
+      });
+    }
     await User.create({
       username: ADMIN_USERNAME,
       email: ADMIN_EMAIL,

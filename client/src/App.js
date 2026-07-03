@@ -6,6 +6,7 @@ import MasterModule from './master/MasterModule';
 import ProcurementModule from './procurement/ProcurementModule';
 import SalesModule from './sales/SalesModule';
 import HrModule from './hr/HrModule';
+import UserManagementModule from './userManagement/UserManagementModule';
 import Login from './components/Login';
 import { MASTER_GROUPS, isMasterTab, resolveMasterSubTab } from './master/masterTabs';
 import {
@@ -15,15 +16,25 @@ import {
 } from './procurement/procurementTabs';
 import { SALES_TABS, isSalesModuleTab, resolveSalesSubTab } from './sales/salesTabs';
 import { HR_TABS, isHrTab, resolveHrSubTab } from './hr/hrTabs';
+import {
+  USER_MANAGEMENT_TABS,
+  isUserManagementTab,
+  resolveUserManagementSubTab,
+} from './userManagement/userManagementTabs';
 import './App.css';
 
 function App() {
-  const { user, login, logout, isAuthenticated, loading } = useAuth();
+  const { user, login, logout, isAuthenticated, loading, hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [masterOpen, setMasterOpen] = useState(false);
   const [procurementOpen, setProcurementOpen] = useState(false);
   const [salesOpen, setSalesOpen] = useState(false);
   const [hrOpen, setHrOpen] = useState(false);
+  const [userManagementOpen, setUserManagementOpen] = useState(false);
+
+  const visibleUserManagementTabs = USER_MANAGEMENT_TABS.filter(
+    (tab) => hasPermission('admin.all') || hasPermission(tab.permission)
+  );
 
   const isMasterActive = activeTab === 'master' || activeTab.startsWith('master:');
   const isProcurementActive =
@@ -31,10 +42,13 @@ function App() {
   const isSalesActive =
     activeTab === 'sales-module' || activeTab.startsWith('sales-module:');
   const isHrActive = activeTab === 'hr' || activeTab.startsWith('hr:');
+  const isUserManagementActive =
+    activeTab === 'user-management' || activeTab.startsWith('user-management:');
   const activeMasterSubTab = resolveMasterSubTab(activeTab);
   const activeProcurementSubTab = resolveProcurementSubTab(activeTab);
   const activeSalesSubTab = resolveSalesSubTab(activeTab);
   const activeHrSubTab = resolveHrSubTab(activeTab);
+  const activeUserManagementSubTab = resolveUserManagementSubTab(activeTab);
 
   useEffect(() => {
     if (isMasterActive) setMasterOpen(true);
@@ -52,11 +66,16 @@ function App() {
     if (isHrActive) setHrOpen(true);
   }, [isHrActive]);
 
+  useEffect(() => {
+    if (isUserManagementActive) setUserManagementOpen(true);
+  }, [isUserManagementActive]);
+
   const closeModuleDropdowns = useCallback(() => {
     setMasterOpen(false);
     setProcurementOpen(false);
     setSalesOpen(false);
     setHrOpen(false);
+    setUserManagementOpen(false);
   }, []);
 
   const handleNavigate = useCallback(
@@ -67,6 +86,7 @@ function App() {
         setProcurementOpen(false);
         setSalesOpen(false);
         setHrOpen(false);
+        setUserManagementOpen(false);
         return;
       }
       if (tab.startsWith('procurement:')) {
@@ -75,6 +95,7 @@ function App() {
         setMasterOpen(false);
         setSalesOpen(false);
         setHrOpen(false);
+        setUserManagementOpen(false);
         return;
       }
       if (tab.startsWith('sales-module:')) {
@@ -83,6 +104,7 @@ function App() {
         setMasterOpen(false);
         setProcurementOpen(false);
         setHrOpen(false);
+        setUserManagementOpen(false);
         return;
       }
       if (tab.startsWith('hr:')) {
@@ -91,6 +113,16 @@ function App() {
         setMasterOpen(false);
         setProcurementOpen(false);
         setSalesOpen(false);
+        setUserManagementOpen(false);
+        return;
+      }
+      if (tab.startsWith('user-management:')) {
+        setActiveTab(tab);
+        setUserManagementOpen(true);
+        setMasterOpen(false);
+        setProcurementOpen(false);
+        setSalesOpen(false);
+        setHrOpen(false);
         return;
       }
       if (isMasterTab(tab)) {
@@ -99,6 +131,7 @@ function App() {
         setProcurementOpen(false);
         setSalesOpen(false);
         setHrOpen(false);
+        setUserManagementOpen(false);
         return;
       }
       if (isProcurementTab(tab)) {
@@ -107,6 +140,7 @@ function App() {
         setMasterOpen(false);
         setSalesOpen(false);
         setHrOpen(false);
+        setUserManagementOpen(false);
         return;
       }
       if (isSalesModuleTab(tab)) {
@@ -115,6 +149,7 @@ function App() {
         setMasterOpen(false);
         setProcurementOpen(false);
         setHrOpen(false);
+        setUserManagementOpen(false);
         return;
       }
       if (isHrTab(tab)) {
@@ -123,6 +158,16 @@ function App() {
         setMasterOpen(false);
         setProcurementOpen(false);
         setSalesOpen(false);
+        setUserManagementOpen(false);
+        return;
+      }
+      if (isUserManagementTab(tab)) {
+        setActiveTab(`user-management:${tab}`);
+        setUserManagementOpen(true);
+        setMasterOpen(false);
+        setProcurementOpen(false);
+        setSalesOpen(false);
+        setHrOpen(false);
         return;
       }
       if (tab === 'master') {
@@ -131,6 +176,7 @@ function App() {
         setProcurementOpen(false);
         setSalesOpen(false);
         setHrOpen(false);
+        setUserManagementOpen(false);
         return;
       }
       if (tab === 'procurement') {
@@ -147,6 +193,7 @@ function App() {
         setMasterOpen(false);
         setProcurementOpen(false);
         setHrOpen(false);
+        setUserManagementOpen(false);
         return;
       }
       if (tab === 'dashboard' || tab === 'mis') {
@@ -160,12 +207,23 @@ function App() {
         setMasterOpen(false);
         setProcurementOpen(false);
         setSalesOpen(false);
+        setUserManagementOpen(false);
+        return;
+      }
+      if (tab === 'user-management') {
+        const firstTab = visibleUserManagementTabs[0]?.id || 'users';
+        setActiveTab(`user-management:${firstTab}`);
+        setUserManagementOpen(true);
+        setMasterOpen(false);
+        setProcurementOpen(false);
+        setSalesOpen(false);
+        setHrOpen(false);
         return;
       }
       setActiveTab(tab);
       closeModuleDropdowns();
     },
-    [closeModuleDropdowns]
+    [closeModuleDropdowns, visibleUserManagementTabs]
   );
 
   if (loading) {
@@ -190,6 +248,9 @@ function App() {
     }
     if (isHrActive) {
       return <HrModule subTab={activeHrSubTab} />;
+    }
+    if (isUserManagementActive) {
+      return <UserManagementModule subTab={activeUserManagementSubTab} />;
     }
 
     switch (activeTab) {
@@ -336,6 +397,34 @@ function App() {
               </div>
             )}
           </div>
+          {visibleUserManagementTabs.length > 0 && (
+            <div className="nav-dropdown">
+              <button
+                type="button"
+                className={`nav-item nav-dropdown-toggle${isUserManagementActive ? ' active' : ''}`}
+                onClick={() => setUserManagementOpen((open) => !open)}
+                aria-expanded={userManagementOpen}
+              >
+                <span>🔐 User Management</span>
+                <span className={`nav-chevron${userManagementOpen ? ' open' : ''}`}>▾</span>
+              </button>
+              {userManagementOpen && (
+                <div className="nav-dropdown-menu">
+                  {visibleUserManagementTabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      className={`nav-subitem${activeUserManagementSubTab === tab.id && isUserManagementActive ? ' active' : ''}`}
+                      onClick={() => handleNavigate(`user-management:${tab.id}`)}
+                    >
+                      <span>{tab.icon}</span>
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </nav>
       </div>
       <div className="main-content">{renderContent()}</div>

@@ -657,16 +657,20 @@ function Products() {
     }
     try {
       const skuFields = skuFormValuesToProductFields(formData);
+      const categoryHsn =
+        categories.find((c) => c._id === formData.category)?.hsnCode || formData.hsnCode || '';
+      if (!String(categoryHsn).trim()) {
+        alert('HSN Code is required. Select a category that has an HSN code, or add HSN to the category in Master → Categories.');
+        return;
+      }
       const submitData = {
         ...formData,
         ...skuFields,
         parentSku: undefined,
         childSku: undefined,
-        // Convert category and subCategory to ObjectIds or null
         category: formData.category || null,
         subCategory: formData.subCategory || null,
-        // Remove hsnCode as it comes from category
-        hsnCode: undefined,
+        hsnCode: String(categoryHsn).trim(),
         bulletPoints: formData.bulletPoints.filter((bp) => bp.trim() !== ''),
         images: formData.images.filter((img) => img.trim() !== ''),
         keywords: formData.keywords.filter((kw) => kw.trim() !== ''),
