@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from './context/AuthContext';
 import Dashboard from './components/Dashboard';
 import MIS from './components/MIS';
 import MasterModule from './master/MasterModule';
 import ProcurementModule from './procurement/ProcurementModule';
 import SalesModule from './sales/SalesModule';
 import HrModule from './hr/HrModule';
+import Login from './components/Login';
 import { MASTER_GROUPS, isMasterTab, resolveMasterSubTab } from './master/masterTabs';
 import {
   PROCUREMENT_TABS,
@@ -16,6 +18,7 @@ import { HR_TABS, isHrTab, resolveHrSubTab } from './hr/hrTabs';
 import './App.css';
 
 function App() {
+  const { user, login, logout, isAuthenticated, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [masterOpen, setMasterOpen] = useState(false);
   const [procurementOpen, setProcurementOpen] = useState(false);
@@ -165,6 +168,14 @@ function App() {
     [closeModuleDropdowns]
   );
 
+  if (loading) {
+    return <div className="app-loading">Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return <Login onLogin={login} />;
+  }
+
   const renderContent = () => {
     if (isMasterActive) {
       return <MasterModule subTab={activeMasterSubTab} />;
@@ -196,6 +207,12 @@ function App() {
       <div className="sidebar">
         <div className="sidebar-header">
           <h1>RetailOS</h1>
+          <div className="sidebar-user">
+            <span>{user?.username || user?.email}</span>
+            <button type="button" className="btn-logout" onClick={logout}>
+              Logout
+            </button>
+          </div>
         </div>
         <nav className="sidebar-nav">
           <button
