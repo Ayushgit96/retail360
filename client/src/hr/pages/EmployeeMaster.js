@@ -55,6 +55,7 @@ function EmployeeMaster() {
   const [viewingEmployee, setViewingEmployee] = useState(null);
   const [formData, setFormData] = useState(emptyForm());
   const [formErrors, setFormErrors] = useState({});
+  const [syncingUsers, setSyncingUsers] = useState(false);
 
   const fetchEmployees = useCallback(async () => {
     try {
@@ -119,6 +120,19 @@ function EmployeeMaster() {
     return Object.keys(errors).length === 0;
   };
 
+  const handleSyncUsers = async () => {
+    try {
+      setSyncingUsers(true);
+      const response = await hrEmployeesAPI.syncUsers();
+      const { created = 0, updated = 0, skipped = 0, total = 0 } = response.data || {};
+      alert(`User accounts synced for ${total} employees.\nCreated: ${created}\nUpdated: ${updated}\nSkipped: ${skipped}`);
+    } catch (error) {
+      alert(error.response?.data?.error || 'Failed to sync user accounts');
+    } finally {
+      setSyncingUsers(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -135,7 +149,15 @@ function EmployeeMaster() {
       if (editingEmployee) {
         await hrEmployeesAPI.update(editingEmployee._id, payload);
       } else {
-        await hrEmployeesAPI.create(payload);
+        const response = await hrEmployeesAPI.create(payload);
+        const account = response.data?.userAccount;
+        if (account?.defaultPassword) {
+          alert(
+            `Employee saved.\n\nUser account created:\nUsername: ${account.username}\nPassword: ${account.defaultPassword}\n\nShare these login details with the employee.`
+          );
+        } else if (account?.error) {
+          alert(`Employee saved, but user account was not created: ${account.error}`);
+        }
       }
       setShowModal(false);
       setEditingEmployee(null);
@@ -223,9 +245,19 @@ function EmployeeMaster() {
           <h1>Employee Master</h1>
           <p className="hr-page-subtitle">Manage employee records, profiles, and employment details</p>
         </div>
-        <button type="button" className="hr-btn hr-btn-primary" onClick={openAdd}>
-          + Add Employee
-        </button>
+        <div className="hr-page-actions">
+          <button
+            type="button"
+            className="hr-btn hr-btn-secondary"
+            disabled={syncingUsers}
+            onClick={handleSyncUsers}
+          >
+            {syncingUsers ? 'Syncing…' : 'Sync User Accounts'}
+          </button>
+          <button type="button" className="hr-btn hr-btn-primary" onClick={openAdd}>
+            + Add Employee
+          </button>
+        </div>
       </header>
 
       <div className="hr-filters-row">

@@ -110,4 +110,5 @@ module.exports = {
   findUserForEmployee,
   getEmployeeIdForUser,
   findUserByLoginIdentifier,
+  escapeRegex,
 };

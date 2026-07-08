@@ -138,6 +138,26 @@
   overflow-y: auto;
 }
 
+.um-container .modal-content.modal-content-roles {
+  max-width: 960px;
+  width: min(95vw, 960px);
+  max-height: 92vh;
+}
+
+.um-container .modal-content.modal-content-roles .multiselect-box {
+  max-height: min(58vh, 520px);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.35rem 1rem;
+  padding: 0.85rem 1rem;
+}
+
+.um-container .modal-content.modal-content-roles .multiselect-box label {
+  padding: 0.45rem 0;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
 .um-container .modal-content h2 {
   margin-top: 0;
   margin-bottom: 1.5rem;

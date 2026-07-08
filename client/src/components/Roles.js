@@ -179,7 +179,7 @@ function Roles() {
       )}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content modal-content-roles" onClick={(e) => e.stopPropagation()}>
             <h2>{editingRole ? 'Edit Role' : 'Add Role'}</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">

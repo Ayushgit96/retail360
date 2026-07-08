@@ -50,6 +50,13 @@ mongoose.connect(MONGODB_URI, {
     if (roleResult.updated > 0) {
       console.log(`Seed: ${roleResult.updated} roles updated`);
     }
+    const { syncAllEmployeeUsers } = require('./utils/employeeUserSync');
+    const userSyncResult = await syncAllEmployeeUsers();
+    if (userSyncResult.created > 0 || userSyncResult.updated > 0) {
+      console.log(
+        `Seed: employee users synced (${userSyncResult.created} created, ${userSyncResult.updated} updated, ${userSyncResult.skipped} skipped)`
+      );
+    }
     const { seedSuperAdmin } = require('./utils/seedAdmin');
     const result = await seedSuperAdmin();
     if (result.skipped) {

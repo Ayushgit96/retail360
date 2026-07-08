@@ -11,6 +11,7 @@ export const hrEmployeesAPI = {
   create: (data) => api.post('/hr/employees', data),
   update: (id, data) => api.put(`/hr/employees/${id}`, data),
   delete: (id) => api.delete(`/hr/employees/${id}`),
+  syncUsers: () => api.post('/hr/employees/sync-users'),
 };
 
 export const hrAttendanceAPI = {

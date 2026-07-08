@@ -30,6 +30,12 @@ const ROLE_DEFINITIONS = [
     description: 'Inventory — product and stock management',
     permissionModules: ['stock', 'products', 'locations', 'shipments', 'shippingCharges', 'shipmentVendors'],
   },
+  {
+    name: 'Employee',
+    code: 'employee',
+    description: 'Employee self-service — dashboard, attendance, tasks, leave',
+    permissionCodes: [],
+  },
 ];
 
 async function resolvePermissionIds(def, allPermissions) {

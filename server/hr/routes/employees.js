@@ -5,6 +5,11 @@ const { paginate } = require('../../utils/pagination');
 const { generateNextEmployeeId } = require('../utils/employeeId');
 const { mergeDepartments } = require('../utils/departments');
 const { syncPendingPayrollsForEmployee } = require('../utils/payrollSync');
+const {
+  ensureUserForEmployee,
+  deactivateUserForEmployee,
+  syncAllEmployeeUsers,
+} = require('../../utils/employeeUserSync');
 
 function buildSearchQuery(search) {
   if (!search?.trim()) return {};
@@ -61,6 +66,18 @@ router.get('/departments/list', async (req, res) => {
   }
 });
 
+router.post('/sync-users', async (req, res) => {
+  try {
+    const result = await syncAllEmployeeUsers();
+    res.json({
+      message: 'Employee user accounts synced',
+      ...result,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const employee = await Employee.findById(req.params.id);
@@ -81,7 +98,19 @@ router.post('/', async (req, res) => {
     }
     const employee = new Employee(payload);
     await employee.save();
-    res.status(201).json(employee);
+    const userSync = await ensureUserForEmployee(employee);
+    const response = employee.toObject();
+    if (!userSync.skipped) {
+      response.userAccount = {
+        username: userSync.user.username,
+        email: userSync.user.email,
+        created: userSync.created,
+        defaultPassword: userSync.defaultPassword,
+      };
+    } else if (userSync.reason) {
+      response.userAccount = { error: userSync.reason };
+    }
+    res.status(201).json(response);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -97,7 +126,19 @@ router.put('/:id', async (req, res) => {
     });
     if (!employee) return res.status(404).json({ error: 'Employee not found' });
     await syncPendingPayrollsForEmployee(employee._id, employee.basicSalary);
-    res.json(employee);
+    const userSync = await ensureUserForEmployee(employee);
+    const response = employee.toObject();
+    if (!userSync.skipped) {
+      response.userAccount = {
+        username: userSync.user.username,
+        email: userSync.user.email,
+        created: userSync.created,
+        isActive: userSync.user.isActive,
+      };
+    } else if (userSync.reason) {
+      response.userAccount = { error: userSync.reason };
+    }
+    res.json(response);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -107,6 +148,7 @@ router.delete('/:id', async (req, res) => {
   try {
     const employee = await Employee.findByIdAndDelete(req.params.id);
     if (!employee) return res.status(404).json({ error: 'Employee not found' });
+    await deactivateUserForEmployee(employee);
     res.json({ message: 'Employee deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
