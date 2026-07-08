@@ -72,6 +72,28 @@
   font-weight: 700;
 }
 
+.btn-danger-outline {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ef4444;
+  background: white;
+  color: #dc2626;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-danger-outline:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.btn-danger-outline:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .btn-close-report {
   width: 2rem;
   height: 2rem;

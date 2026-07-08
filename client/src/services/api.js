@@ -201,6 +201,7 @@ export const salesAPI = {
   create: (data) => api.post('/sales', data),
   update: (id, data) => api.put(`/sales/${id}`, data),
   delete: (id) => api.delete(`/sales/${id}`),
+  deleteAll: () => api.delete('/sales/all', { params: { confirm: 'yes' } }),
   removeAmazonOrderDuplicates: () => api.post('/sales/remove-amazon-order-duplicates'),
   getSummary: (params) => api.get('/sales/summary/stats', { params }),
 };

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { reportsAPI, salesAPI, salesChannelsAPI, productsAPI, pricesAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { formatMoney } from '../utils/locationCurrency';
 import { getCatalogSku, getProductDisplayName, getProductThumbnail, PRODUCT_IMAGE_PLACEHOLDER } from '../utils/productDisplayUtils';
 import SalesMonthlyTrendCharts from './SalesMonthlyTrendCharts';
@@ -196,6 +197,8 @@ function ProductExtremeCarousel({ label, products, variant, onOpenProduct }) {
 }
 
 function SalesSkuReport({ onClose }) {
+  const { hasPermission } = useAuth();
+  const isAdmin = hasPermission('admin.all');
   const [filters, setFilters] = useState(defaultFilters);
   const [appliedFilters, setAppliedFilters] = useState(defaultFilters);
   const [showFilters, setShowFilters] = useState(false);
@@ -206,6 +209,7 @@ function SalesSkuReport({ onClose }) {
   const [monthlyTrend, setMonthlyTrend] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [deletingAllSales, setDeletingAllSales] = useState(false);
   const [showExcelUpload, setShowExcelUpload] = useState(false);
   const [viewingSale, setViewingSale] = useState(null);
   const [viewingSaleLoading, setViewingSaleLoading] = useState(false);
@@ -367,6 +371,30 @@ function SalesSkuReport({ onClose }) {
       alert(error.response?.data?.error || 'Failed to export report');
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleDeleteAllSales = async () => {
+    const confirmed = window.confirm(
+      'Delete ALL sales data?\n\nThis will permanently remove every sales record in the database (not just the current filter). Stock quantities will be restored for each deleted sale.'
+    );
+    if (!confirmed) return;
+
+    const doubleConfirm = window.confirm(
+      'This cannot be undone. Click OK to permanently delete all sales data.'
+    );
+    if (!doubleConfirm) return;
+
+    try {
+      setDeletingAllSales(true);
+      const response = await salesAPI.deleteAll();
+      alert(`Deleted ${response.data.deletedCount} sales record(s).`);
+      fetchReport();
+    } catch (error) {
+      console.error('Error deleting all sales:', error);
+      alert(error.response?.data?.error || 'Failed to delete all sales');
+    } finally {
+      setDeletingAllSales(false);
     }
   };
 
@@ -543,6 +571,17 @@ function SalesSkuReport({ onClose }) {
           >
             {exporting ? 'Exporting…' : 'Export Excel'}
           </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className="btn-danger-outline"
+              disabled={deletingAllSales}
+              onClick={handleDeleteAllSales}
+              title="Permanently delete all sales records (admin only)"
+            >
+              {deletingAllSales ? 'Deleting…' : '🗑 Delete All Sales'}
+            </button>
+          )}
           {onClose && (
             <button type="button" className="btn-close-report" onClick={onClose}>
               ×

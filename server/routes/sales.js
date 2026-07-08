@@ -9,6 +9,9 @@ const { generateTemplate } = require('../utils/excelGenerator');
 const { computeCategoryTax } = require('../utils/taxRates');
 const { isUaeSalesLocation } = require('../utils/locationCurrency');
 const { deductSaleStockItems, restoreSaleStockItems } = require('../utils/saleStockUtils');
+const { requireAdminOrRole } = require('../middleware/auth');
+
+const adminOnlyAccess = requireAdminOrRole('admin');
 
 const SALES_CURRENCY = 'AED';
 
@@ -734,6 +737,32 @@ router.post('/remove-amazon-order-duplicates', async (req, res) => {
       error: error.message,
       stack: error.stack,
     });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE all sales — must be before /:id (admin only)
+router.delete('/all', adminOnlyAccess, async (req, res) => {
+  try {
+    if (req.query.confirm !== 'yes') {
+      return res.status(400).json({ error: 'Confirmation required. Pass ?confirm=yes' });
+    }
+
+    const sales = await Sale.find();
+    let deleted = 0;
+
+    for (const sale of sales) {
+      await reverseSaleStock(sale);
+      await Sale.findByIdAndDelete(sale._id);
+      deleted += 1;
+    }
+
+    res.json({
+      message: 'All sales records deleted successfully',
+      deletedCount: deleted,
+    });
+  } catch (error) {
+    console.error('Error deleting all sales:', error);
     res.status(500).json({ error: error.message });
   }
 });
