@@ -33,4 +33,18 @@ function calcLeaveDays(fromDate, toDate) {
   return Math.max(diff, 1);
 }
 
-module.exports = { generateNextEmployeeId, startOfDay, endOfDay, dayName, calcLeaveDays };
+function formatTimeHHMM(date) {
+  const d = new Date(date);
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+module.exports = {
+  generateNextEmployeeId,
+  startOfDay,
+  endOfDay,
+  dayName,
+  calcLeaveDays,
+  formatTimeHHMM,
+};

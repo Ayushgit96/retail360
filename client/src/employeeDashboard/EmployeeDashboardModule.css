@@ -22,6 +22,10 @@
 }
 
 .ed-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
   margin-bottom: 1rem;
 }
 
@@ -285,11 +289,124 @@
   color: #9ca3af;
 }
 
+.ed-task-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .ed-task-actions select {
-  width: 100%;
+  flex: 1;
   padding: 0.45rem 0.55rem;
   border: 1px solid #d1d5db;
   border-radius: 8px;
+}
+
+.ed-task-card.source-personal {
+  border-left-color: #6366f1;
+}
+
+.ed-task-card.source-hr {
+  border-left-color: #0ea5e9;
+}
+
+.ed-view-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.ed-view-tab {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #fff;
+  color: #374151;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.ed-view-tab.active {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  color: #fff;
+}
+
+.ed-personal-task-form {
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.ed-personal-task-form h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.ed-form-group-full {
+  grid-column: 1 / -1;
+}
+
+.ed-form-row:has(.ed-form-group-full) {
+  grid-template-columns: 1fr;
+}
+
+.ed-timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.ed-task-timeline {
+  margin: 0.75rem 0;
+}
+
+.ed-task-timeline-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 0.35rem;
+}
+
+.ed-task-timeline-track {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.ed-task-timeline-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #818cf8);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.ed-task-timeline-fill.completed {
+  background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.ed-task-timeline-fill.overdue {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.ed-task-overdue {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #dc2626;
+}
+
+.ed-btn-danger-outline {
+  background: transparent;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+  white-space: nowrap;
+}
+
+.ed-btn-danger-outline:hover {
+  background: #fef2f2;
 }
 
 .ed-leave-layout {

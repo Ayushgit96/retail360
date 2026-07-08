@@ -33,12 +33,31 @@ async function userCanManageAllAttendance(userId) {
 }
 
 async function getEmployeeIdForUser(userId) {
-  const user = await User.findById(userId).select('email').lean();
-  if (!user?.email) {
-    return null;
+  const { getEmployeeIdForUser: resolveEmployeeId } = require('../../utils/userEmployeeLink');
+  return resolveEmployeeId(userId);
+}
+
+async function getEmployeeCheckInTime(employeeId, forDate = new Date()) {
+  const employee = await Employee.findById(employeeId).select('email').lean();
+  if (!employee?.email) {
+    return '';
   }
-  const employee = await Employee.findOne({ email: user.email.toLowerCase() }).select('_id').lean();
-  return employee?._id?.toString() || null;
+
+  const user = await User.findOne({ email: employee.email.toLowerCase() }).select('lastLoginAt').lean();
+  if (!user?.lastLoginAt) {
+    return '';
+  }
+
+  const { startOfDay, endOfDay, formatTimeHHMM } = require('./employeeId');
+  const loginAt = new Date(user.lastLoginAt);
+  const dayStart = startOfDay(forDate);
+  const dayEnd = endOfDay(forDate);
+
+  if (loginAt < dayStart || loginAt > dayEnd) {
+    return '';
+  }
+
+  return formatTimeHHMM(loginAt);
 }
 
 async function resolveAttendanceScope(req) {
@@ -78,6 +97,7 @@ function recordMatchesScope(recordEmployeeId, scope) {
 module.exports = {
   userCanManageAllAttendance,
   getEmployeeIdForUser,
+  getEmployeeCheckInTime,
   resolveAttendanceScope,
   applyEmployeeScope,
   recordMatchesScope,

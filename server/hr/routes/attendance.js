@@ -7,6 +7,7 @@ const {
   resolveAttendanceScope,
   applyEmployeeScope,
   recordMatchesScope,
+  getEmployeeCheckInTime,
 } = require('../utils/attendanceAccess');
 
 function parseDateRange(date, month, year) {
@@ -151,9 +152,33 @@ router.get('/', async (req, res) => {
   }
 });
 
+router.get('/mark-defaults', async (req, res) => {
+  try {
+    const scope = await resolveAttendanceScope(req);
+    if (!scope.canManageAll) {
+      return res.status(403).json({ error: 'Only HR and Admin can mark attendance for employees' });
+    }
+
+    const { employee } = req.query;
+    if (!employee) {
+      return res.status(400).json({ error: 'Employee is required' });
+    }
+
+    const today = startOfDay(new Date());
+    const checkIn = await getEmployeeCheckInTime(employee, today);
+
+    res.json({
+      date: today.toISOString().slice(0, 10),
+      checkIn,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get('/:id', async (req, res) => {
   try {
-    if (req.params.id === 'context') {
+    if (req.params.id === 'context' || req.params.id === 'mark-defaults') {
       return res.status(404).json({ error: 'Route not found' });
     }
     const scope = await resolveAttendanceScope(req);
@@ -177,7 +202,18 @@ router.post('/', async (req, res) => {
     if (!scope.canManageAll) {
       return res.status(403).json({ error: 'Only HR and Admin can mark attendance for employees' });
     }
-    const payload = { ...req.body, date: startOfDay(req.body.date || new Date()) };
+
+    const today = startOfDay(new Date());
+    const checkIn =
+      req.body.checkIn ||
+      (req.body.employee ? await getEmployeeCheckInTime(req.body.employee, today) : '');
+
+    const payload = {
+      ...req.body,
+      date: today,
+      checkIn,
+    };
+
     const record = new Attendance(payload);
     await record.save();
     await record.populate('employee', 'employeeId firstName lastName department photo');
@@ -193,8 +229,14 @@ router.put('/:id', async (req, res) => {
     if (!scope.canManageAll) {
       return res.status(403).json({ error: 'Only HR and Admin can update attendance records' });
     }
+
+    const existing = await Attendance.findById(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Attendance record not found' });
+
     const payload = { ...req.body };
-    if (payload.date) payload.date = startOfDay(payload.date);
+    delete payload.date;
+    delete payload.checkIn;
+
     const record = await Attendance.findByIdAndUpdate(req.params.id, payload, {
       new: true,
       runValidators: true,

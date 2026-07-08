@@ -28,6 +28,14 @@ const emptyForm = () => ({
   notes: '',
 });
 
+const formatTodayLabel = () =>
+  new Date().toLocaleDateString('en-IN', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+
 function Attendance() {
   const [viewMode, setViewMode] = useState('daily');
   const [canManageAll, setCanManageAll] = useState(false);
@@ -52,6 +60,37 @@ function Attendance() {
   const [showModal, setShowModal] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [formData, setFormData] = useState(emptyForm());
+  const [loadingDefaults, setLoadingDefaults] = useState(false);
+
+  const loadMarkDefaults = async (employeeId) => {
+    if (!employeeId) {
+      setFormData((f) => ({
+        ...f,
+        date: toInputDate(new Date()),
+        checkIn: '',
+      }));
+      return;
+    }
+
+    try {
+      setLoadingDefaults(true);
+      const res = await hrAttendanceAPI.getMarkDefaults(employeeId);
+      setFormData((f) => ({
+        ...f,
+        date: res.data?.date || toInputDate(new Date()),
+        checkIn: res.data?.checkIn || '',
+      }));
+    } catch (error) {
+      console.error('Error loading attendance defaults:', error);
+      setFormData((f) => ({
+        ...f,
+        date: toInputDate(new Date()),
+        checkIn: '',
+      }));
+    } finally {
+      setLoadingDefaults(false);
+    }
+  };
 
   const fetchRecords = useCallback(async () => {
     if (!accessLoaded) return;
@@ -142,6 +181,13 @@ function Attendance() {
     }
   }, [canManageAll, linkedEmployeeId]);
 
+  const handleEmployeeChange = (employeeId) => {
+    setFormData((f) => ({ ...f, employee: employeeId }));
+    if (!editingRecord) {
+      loadMarkDefaults(employeeId);
+    }
+  };
+
   const openAdd = () => {
     setEditingRecord(null);
     setFormData(emptyForm());
@@ -207,7 +253,7 @@ function Attendance() {
           </div>
         </header>
         <p className="hr-empty">
-          No employee profile is linked to your login account. Ask HR to use the same email on your employee record as your user account.
+          No employee profile is linked to your login account. Ask HR to match your user account (email or name as username) with your record in Employee Master.
         </p>
       </div>
     );
@@ -419,7 +465,7 @@ function Attendance() {
                     <label>Employee <span className="required">*</span></label>
                     <select
                       value={formData.employee}
-                      onChange={(e) => setFormData((f) => ({ ...f, employee: e.target.value }))}
+                      onChange={(e) => handleEmployeeChange(e.target.value)}
                       required
                       disabled={!!editingRecord}
                     >
@@ -431,11 +477,31 @@ function Attendance() {
                   </div>
                   <div className="hr-form-group">
                     <label>Date</label>
-                    <input type="date" value={formData.date} onChange={(e) => setFormData((f) => ({ ...f, date: e.target.value }))} required />
+                    <input
+                      type="text"
+                      value={editingRecord ? formatDate(formData.date) : formatTodayLabel()}
+                      readOnly
+                      className="hr-input-readonly"
+                    />
+                    {!editingRecord && (
+                      <small className="hr-field-hint">Attendance is always marked for today.</small>
+                    )}
                   </div>
                   <div className="hr-form-group">
                     <label>Check In</label>
-                    <input type="time" value={formData.checkIn} onChange={(e) => setFormData((f) => ({ ...f, checkIn: e.target.value }))} />
+                    <input
+                      type="text"
+                      value={loadingDefaults ? 'Loading…' : (formData.checkIn || '—')}
+                      readOnly
+                      className="hr-input-readonly"
+                    />
+                    {!editingRecord && (
+                      <small className="hr-field-hint">
+                        {formData.checkIn
+                          ? 'Taken from the employee’s login time today.'
+                          : 'No login recorded for this employee today.'}
+                      </small>
+                    )}
                   </div>
                   <div className="hr-form-group">
                     <label>Check Out</label>

@@ -248,7 +248,13 @@ function Users() {
                   onChange={handleInputChange}
                   required
                   disabled={!!editingUser}
+                  placeholder="Employee first name or full name"
                 />
+                {!editingUser && (
+                  <small style={{ color: '#666' }}>
+                    Use the employee name so they can sign in with their name.
+                  </small>
+                )}
                 {editingUser && <small style={{ color: '#666' }}>Username cannot be changed</small>}
               </div>
               <div className="form-group">

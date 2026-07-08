@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authAPI } from '../services/api';
+import { canEditStockProduct as checkCanEditStockProduct } from '../utils/accessControl';
 
 const AuthContext = createContext(null);
 
@@ -59,8 +60,22 @@ export function AuthProvider({ children }) {
     return user.permissions.includes('admin.all') || user.permissions.includes(permissionCode);
   };
 
+  const canEditStockProduct = useCallback(
+    () => checkCanEditStockProduct(hasPermission, user),
+    [user]
+  );
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated, loading, hasPermission, permissions: user?.permissions || [] }}>
+    <AuthContext.Provider value={{
+      user,
+      login,
+      logout,
+      isAuthenticated,
+      loading,
+      hasPermission,
+      canEditStockProduct,
+      permissions: user?.permissions || [],
+    }}>
       {children}
     </AuthContext.Provider>
   );

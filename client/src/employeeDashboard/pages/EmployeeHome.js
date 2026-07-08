@@ -90,6 +90,13 @@ function EmployeeHome() {
                           <div>
                             <strong>{task.title}</strong>
                             {task.description && <p>{task.description}</p>}
+                            <span className="ed-task-meta">
+                              {task.source === 'Personal' ? 'Personal' : 'HR assigned'}
+                              {' · '}
+                              {formatDate(task.startDate || task.dueDate)}
+                              {' → '}
+                              {formatDate(task.dueDate)}
+                            </span>
                           </div>
                           <span className="ed-task-priority">{task.priority}</span>
                         </li>

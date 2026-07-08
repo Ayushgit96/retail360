@@ -40,14 +40,14 @@ function Login({ onLogin }) {
         <h2>Sign In</h2>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Username or Email</label>
+            <label>Username, email, or name</label>
             <input
               type="text"
               value={usernameOrEmail}
               onChange={(e) => setUsernameOrEmail(e.target.value)}
               required
               autoFocus
-              placeholder="Enter username or email"
+              placeholder="e.g. Rahul or Rahul Sharma"
             />
           </div>
           <div className="form-group">

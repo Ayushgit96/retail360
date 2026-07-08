@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { stockAPI, productsAPI, locationsAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import logger from '../utils/logger';
 import DetailModal from './DetailModal';
 import ExcelUpload from './ExcelUpload';
@@ -60,6 +61,8 @@ function StockProductCell({ product }) {
 }
 
 function Stock() {
+  const { canEditStockProduct } = useAuth();
+  const canEdit = canEditStockProduct();
   const currentMonthLabel = new Date().toLocaleDateString('en-IN', {
     month: 'short',
     year: 'numeric',
@@ -454,6 +457,8 @@ function Stock() {
       <div className="stock-header">
         <h1>Stock Management</h1>
         <div className="stock-header-actions">
+          {canEdit && (
+            <>
           <button className="btn-secondary" onClick={() => setShowExcelUpload(true)}>
             ⬆ Upload Excel
           </button>
@@ -467,6 +472,8 @@ function Stock() {
           <button className="btn-primary" onClick={handleAddStock}>
             + Add Stock
           </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -663,6 +670,8 @@ function Stock() {
                       {new Date(stockRecord.lastUpdated).toLocaleDateString()}
                     </td>
                     <td onClick={(e) => e.stopPropagation()} className="stock-actions-cell">
+                      {canEdit && (
+                        <>
                       <button
                         className="btn-adjust"
                         onClick={() => handleAdjustStock(stockRecord)}
@@ -675,6 +684,8 @@ function Stock() {
                       >
                         Remove
                       </button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -733,16 +744,16 @@ function Stock() {
             },
           ]}
           onClose={() => setViewingStock(null)}
-          onEdit={() => {
+          onEdit={canEdit ? () => {
             const record = viewingStock;
             setViewingStock(null);
             handleAdjustStock(record);
-          }}
-          onDelete={() => {
+          } : undefined}
+          onDelete={canEdit ? () => {
             const id = viewingStock._id;
             setViewingStock(null);
             handleDeleteStock(id);
-          }}
+          } : undefined}
         />
       )}
 

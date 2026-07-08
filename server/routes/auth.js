@@ -6,20 +6,16 @@ const Role = require('../models/Role');
 const Permission = require('../models/Permission');
 const Group = require('../models/Group');
 const { authenticate, JWT_SECRET, getEffectivePermissions } = require('../middleware/auth');
+const { findUserByLoginIdentifier } = require('../utils/userEmployeeLink');
 
 // POST /login - no auth required
 router.post('/login', async (req, res) => {
   try {
     const { usernameOrEmail, password } = req.body;
     if (!usernameOrEmail || !password) {
-      return res.status(400).json({ error: 'Username/email and password are required' });
+      return res.status(400).json({ error: 'Username, email, or employee name and password are required' });
     }
-    const user = await User.findOne({
-      $or: [
-        { username: usernameOrEmail.trim() },
-        { email: usernameOrEmail.trim().toLowerCase() }
-      ]
-    }).populate('roles', 'name code').populate('groups', 'name code');
+    const user = await findUserByLoginIdentifier(usernameOrEmail);
     if (!user || !user.isActive) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -27,6 +23,8 @@ router.post('/login', async (req, res) => {
     if (!valid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+    user.lastLoginAt = new Date();
+    await user.save();
     const token = jwt.sign(
       { id: user._id, username: user.username },
       JWT_SECRET,

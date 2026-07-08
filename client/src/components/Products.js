@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { productsAPI, pricesAPI, categoriesAPI, subcategoriesAPI, suppliersAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import logger from '../utils/logger';
 import Pagination from './Pagination';
 import ExcelUpload from './ExcelUpload';
@@ -268,6 +269,8 @@ function countActiveProductFilters(applied) {
 }
 
 function Products() {
+  const { canEditStockProduct } = useAuth();
+  const canEdit = canEditStockProduct();
   const [products, setProducts] = useState([]);
   const [productPrices, setProductPrices] = useState({}); // Map of productId -> price
   const [loading, setLoading] = useState(true);
@@ -1046,12 +1049,16 @@ function Products() {
           >
             {exporting ? 'Exporting…' : '📤 Export Excel'}
           </button>
+          {canEdit && (
+            <>
           <button className="btn-secondary" onClick={() => setShowExcelUpload(true)}>
             📥 Upload Excel
           </button>
           <button className="btn-primary" onClick={openAddModal}>
             + Add Product
           </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -1182,6 +1189,8 @@ function Products() {
                       }
                     </td>
                     <td>
+                      {canEdit && (
+                      <>
                       <button
                         className="btn-suppliers"
                         onClick={() => handleOpenSuppliers(product)}
@@ -1195,6 +1204,8 @@ function Products() {
                       >
                         Delete
                       </button>
+                      </>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -1221,7 +1232,7 @@ function Products() {
           price={productPrices[viewingProduct._id]}
           priceCurrency="INR"
           onClose={closeDetailModal}
-          onEdit={handleEditFromDetail}
+          onEdit={canEdit ? handleEditFromDetail : undefined}
         />
       )}
 

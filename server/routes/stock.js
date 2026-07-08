@@ -13,6 +13,9 @@ const {
   buildSoldCurrentMonthMap,
   enrichStockWithSoldCurrentMonth,
 } = require('../utils/stockSalesUtils');
+const { requireAdminOrRole } = require('../middleware/auth');
+
+const stockEditAccess = requireAdminOrRole('admin', 'warehouse');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -144,7 +147,7 @@ router.get('/alerts/low-stock', async (req, res) => {
 });
 
 // POST create/update stock
-router.post('/', async (req, res) => {
+router.post('/', stockEditAccess, async (req, res) => {
   try {
     const { product, location, quantity, minStockLevel } = req.body;
     
@@ -169,7 +172,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT update stock quantity
-router.put('/:id', async (req, res) => {
+router.put('/:id', stockEditAccess, async (req, res) => {
   try {
     const { quantity, minStockLevel, reservedQuantity } = req.body;
     const updateData = { lastUpdated: new Date() };
@@ -196,7 +199,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE all stock (optional filters: product, location) — must be before /:id
-router.delete('/all', async (req, res) => {
+router.delete('/all', stockEditAccess, async (req, res) => {
   try {
     if (req.query.confirm !== 'yes') {
       return res.status(400).json({ error: 'Confirmation required' });
@@ -217,7 +220,7 @@ router.delete('/all', async (req, res) => {
 });
 
 // DELETE stock record
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', stockEditAccess, async (req, res) => {
   try {
     const stock = await Stock.findByIdAndDelete(req.params.id);
     if (!stock) {
@@ -249,7 +252,7 @@ router.get('/template', (req, res) => {
 });
 
 // POST import stock from Excel
-router.post('/import', upload.single('file'), async (req, res) => {
+router.post('/import', stockEditAccess, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });

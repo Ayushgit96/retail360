@@ -11,6 +11,9 @@ const { paginate } = require('../utils/pagination');
 const { parseExcel, validateExcelData, buildImportErrorSummary } = require('../utils/excelParser');
 const { generateTemplate, exportToExcel } = require('../utils/excelGenerator');
 const { parseSupplierLinksPayload } = require('../utils/productSuppliers');
+const { requireAdminOrRole } = require('../middleware/auth');
+
+const productEditAccess = requireAdminOrRole('admin', 'warehouse');
 
 const SUPPLIER_POPULATE = {
   path: 'suppliers.supplier',
@@ -650,7 +653,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST upload images for a product
-router.post('/:id/images', async (req, res) => {
+router.post('/:id/images', productEditAccess, async (req, res) => {
   try {
     const productId = req.params.id;
     const product = await Product.findById(productId);
@@ -709,7 +712,7 @@ router.post('/:id/images', async (req, res) => {
 });
 
 // POST create product
-router.post('/', async (req, res) => {
+router.post('/', productEditAccess, async (req, res) => {
   try {
     if (!req.body.sku || !String(req.body.sku).trim()) {
       return res.status(400).json({ error: 'SKU is required' });
@@ -759,7 +762,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT update product
-router.put('/:id', async (req, res) => {
+router.put('/:id', productEditAccess, async (req, res) => {
   try {
     const productId = req.params.id;
     const oldProduct = await Product.findById(productId);
@@ -848,7 +851,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // PUT update product suppliers (multiple)
-router.put('/:id/suppliers', async (req, res) => {
+router.put('/:id/suppliers', productEditAccess, async (req, res) => {
   try {
     if (req.params.id === 'template' || req.params.id === 'import') {
       return res.status(404).json({ error: 'Route not found' });
@@ -885,7 +888,7 @@ router.put('/:id/suppliers', async (req, res) => {
 });
 
 // DELETE product
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', productEditAccess, async (req, res) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
     if (!product) {
@@ -898,7 +901,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // POST import products from Excel
-router.post('/import', upload.single('file'), async (req, res) => {
+router.post('/import', productEditAccess, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });

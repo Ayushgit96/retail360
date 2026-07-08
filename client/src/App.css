@@ -27,6 +27,12 @@
   color: #666;
 }
 
+.app-access-denied {
+  padding: 2rem;
+  color: #6b7280;
+  font-size: 1rem;
+}
+
 .sidebar-header {
   padding: 2rem 1.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);

@@ -11,11 +11,11 @@ const ROLE_DEFINITIONS = [
   {
     name: 'HR',
     code: 'hr',
-    description: 'Human resources — user and employee access',
+    description: 'Human resources — employee and user management',
     permissionCodes: [
+      'hr.access',
       'users.view', 'users.create', 'users.update', 'users.delete',
       'roles.view', 'groups.view', 'permissions.view',
-      'reports.view',
     ],
   },
   {
@@ -27,8 +27,8 @@ const ROLE_DEFINITIONS = [
   {
     name: 'Warehouse',
     code: 'warehouse',
-    description: 'Inventory and logistics — stock, locations, shipments',
-    permissionModules: ['stock', 'locations', 'shipments', 'shippingCharges', 'shipmentVendors', 'products'],
+    description: 'Inventory — product and stock management',
+    permissionModules: ['stock', 'products', 'locations', 'shipments', 'shippingCharges', 'shipmentVendors'],
   },
 ];
 

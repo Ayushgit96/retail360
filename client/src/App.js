@@ -8,8 +8,19 @@ import SalesModule from './sales/SalesModule';
 import HrModule from './hr/HrModule';
 import UserManagementModule from './userManagement/UserManagementModule';
 import EmployeeDashboardModule from './employeeDashboard/EmployeeDashboardModule';
+import InventoryModule from './inventory/InventoryModule';
 import Login from './components/Login';
 import { MASTER_GROUPS, isMasterTab, resolveMasterSubTab } from './master/masterTabs';
+import {
+  INVENTORY_GROUPS,
+  isInventoryTab,
+  resolveInventorySubTab,
+} from './inventory/inventoryTabs';
+import {
+  canViewMaster,
+  filterTabGroups,
+  filterTabs,
+} from './utils/accessControl';
 import {
   PROCUREMENT_TABS,
   isProcurementTab,
@@ -38,12 +49,22 @@ function App() {
   const [hrOpen, setHrOpen] = useState(false);
   const [userManagementOpen, setUserManagementOpen] = useState(false);
   const [employeeDashboardOpen, setEmployeeDashboardOpen] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+
+  const showMasterNav = canViewMaster(hasPermission);
+  const showInventoryNav = !showMasterNav && filterTabGroups(hasPermission, user, INVENTORY_GROUPS).length > 0;
+  const visibleInventoryGroups = filterTabGroups(hasPermission, user, INVENTORY_GROUPS);
+  const visibleProcurementTabs = filterTabs(hasPermission, user, PROCUREMENT_TABS);
+  const visibleSalesTabs = filterTabs(hasPermission, user, SALES_TABS);
+  const visibleHrTabs = filterTabs(hasPermission, user, HR_TABS);
+  const canViewReports = hasPermission('admin.all') || hasPermission('reports.view');
 
   const visibleUserManagementTabs = USER_MANAGEMENT_TABS.filter(
     (tab) => hasPermission('admin.all') || hasPermission(tab.permission)
   );
 
-  const isMasterActive = activeTab === 'master' || activeTab.startsWith('master:');
+  const isInventoryActive = activeTab === 'inventory' || activeTab.startsWith('inventory:');
+  const isMasterActive = showMasterNav && (activeTab === 'master' || activeTab.startsWith('master:'));
   const isProcurementActive =
     activeTab === 'procurement' || activeTab.startsWith('procurement:');
   const isSalesActive =
@@ -59,6 +80,11 @@ function App() {
   const activeHrSubTab = resolveHrSubTab(activeTab);
   const activeUserManagementSubTab = resolveUserManagementSubTab(activeTab);
   const activeEmployeeDashboardSubTab = resolveEmployeeDashboardSubTab(activeTab);
+  const activeInventorySubTab = resolveInventorySubTab(activeTab);
+
+  useEffect(() => {
+    if (isInventoryActive) setInventoryOpen(true);
+  }, [isInventoryActive]);
 
   useEffect(() => {
     if (isMasterActive) setMasterOpen(true);
@@ -86,6 +112,7 @@ function App() {
 
   const closeModuleDropdowns = useCallback(() => {
     setMasterOpen(false);
+    setInventoryOpen(false);
     setProcurementOpen(false);
     setSalesOpen(false);
     setHrOpen(false);
@@ -95,6 +122,17 @@ function App() {
 
   const handleNavigate = useCallback(
     (tab) => {
+      if (tab.startsWith('inventory:')) {
+        setActiveTab(tab);
+        setInventoryOpen(true);
+        setMasterOpen(false);
+        setProcurementOpen(false);
+        setSalesOpen(false);
+        setHrOpen(false);
+        setUserManagementOpen(false);
+        setEmployeeDashboardOpen(false);
+        return;
+      }
       if (tab.startsWith('master:')) {
         setActiveTab(tab);
         setMasterOpen(true);
@@ -153,6 +191,17 @@ function App() {
         setSalesOpen(false);
         setHrOpen(false);
         setUserManagementOpen(false);
+        return;
+      }
+      if (isInventoryTab(tab)) {
+        setActiveTab(`inventory:${tab}`);
+        setInventoryOpen(true);
+        setMasterOpen(false);
+        setProcurementOpen(false);
+        setSalesOpen(false);
+        setHrOpen(false);
+        setUserManagementOpen(false);
+        setEmployeeDashboardOpen(false);
         return;
       }
       if (isMasterTab(tab)) {
@@ -215,6 +264,18 @@ function App() {
         setUserManagementOpen(false);
         return;
       }
+      if (tab === 'inventory') {
+        const firstTab = visibleInventoryGroups[0]?.tabs[0]?.id || 'stock';
+        setActiveTab(`inventory:${firstTab}`);
+        setInventoryOpen(true);
+        setMasterOpen(false);
+        setProcurementOpen(false);
+        setSalesOpen(false);
+        setHrOpen(false);
+        setUserManagementOpen(false);
+        setEmployeeDashboardOpen(false);
+        return;
+      }
       if (tab === 'master') {
         setActiveTab('master:products');
         setMasterOpen(true);
@@ -226,7 +287,8 @@ function App() {
         return;
       }
       if (tab === 'procurement') {
-        setActiveTab('procurement:purchase-requisite');
+        const firstTab = visibleProcurementTabs[0]?.id || 'purchase-requisite';
+        setActiveTab(`procurement:${firstTab}`);
         setProcurementOpen(true);
         setMasterOpen(false);
         setSalesOpen(false);
@@ -236,7 +298,8 @@ function App() {
         return;
       }
       if (tab === 'sales-module') {
-        setActiveTab('sales-module:sales');
+        const firstTab = visibleSalesTabs[0]?.id || 'sales';
+        setActiveTab(`sales-module:${firstTab}`);
         setSalesOpen(true);
         setMasterOpen(false);
         setProcurementOpen(false);
@@ -251,7 +314,8 @@ function App() {
         return;
       }
       if (tab === 'hr') {
-        setActiveTab('hr:hr-dashboard');
+        const firstTab = visibleHrTabs[0]?.id || 'hr-dashboard';
+        setActiveTab(`hr:${firstTab}`);
         setHrOpen(true);
         setMasterOpen(false);
         setProcurementOpen(false);
@@ -284,7 +348,7 @@ function App() {
       setActiveTab(tab);
       closeModuleDropdowns();
     },
-    [closeModuleDropdowns, visibleUserManagementTabs]
+    [closeModuleDropdowns, visibleUserManagementTabs, visibleInventoryGroups, visibleProcurementTabs, visibleSalesTabs, visibleHrTabs]
   );
 
   if (loading) {
@@ -296,8 +360,11 @@ function App() {
   }
 
   const renderContent = () => {
-    if (isMasterActive) {
+    if (isMasterActive && showMasterNav) {
       return <MasterModule subTab={activeMasterSubTab} />;
+    }
+    if (isInventoryActive && showInventoryNav) {
+      return <InventoryModule subTab={activeInventorySubTab} />;
     }
     if (isProcurementActive) {
       return (
@@ -319,11 +386,17 @@ function App() {
 
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard onNavigate={handleNavigate} />;
+        return canViewReports ? <Dashboard onNavigate={handleNavigate} /> : (
+          <div className="app-access-denied">You do not have access to this section.</div>
+        );
       case 'mis':
-        return <MIS />;
+        return canViewReports ? <MIS /> : (
+          <div className="app-access-denied">You do not have access to this section.</div>
+        );
       default:
-        return <Dashboard onNavigate={handleNavigate} />;
+        return canViewReports ? <Dashboard onNavigate={handleNavigate} /> : (
+          <div className="app-access-denied">Select a module from the sidebar for your role.</div>
+        );
     }
   };
 
@@ -340,18 +413,23 @@ function App() {
           </div>
         </div>
         <nav className="sidebar-nav">
-          <button
-            className={activeTab === 'dashboard' ? 'nav-item active' : 'nav-item'}
-            onClick={() => handleNavigate('dashboard')}
-          >
-            📊 Dashboard
-          </button>
-          <button
-            className={activeTab === 'mis' ? 'nav-item active' : 'nav-item'}
-            onClick={() => handleNavigate('mis')}
-          >
-            📊 MIS Reports
-          </button>
+          {canViewReports && (
+            <>
+              <button
+                className={activeTab === 'dashboard' ? 'nav-item active' : 'nav-item'}
+                onClick={() => handleNavigate('dashboard')}
+              >
+                📊 Dashboard
+              </button>
+              <button
+                className={activeTab === 'mis' ? 'nav-item active' : 'nav-item'}
+                onClick={() => handleNavigate('mis')}
+              >
+                📊 MIS Reports
+              </button>
+            </>
+          )}
+          {showMasterNav && (
           <div className="nav-dropdown">
             <button
               type="button"
@@ -383,6 +461,41 @@ function App() {
               </div>
             )}
           </div>
+          )}
+          {showInventoryNav && (
+          <div className="nav-dropdown">
+            <button
+              type="button"
+              className={`nav-item nav-dropdown-toggle${isInventoryActive ? ' active' : ''}`}
+              onClick={() => setInventoryOpen((open) => !open)}
+              aria-expanded={inventoryOpen}
+            >
+              <span>📦 Inventory</span>
+              <span className={`nav-chevron${inventoryOpen ? ' open' : ''}`}>▾</span>
+            </button>
+            {inventoryOpen && (
+              <div className="nav-dropdown-menu">
+                {visibleInventoryGroups.map((group) => (
+                  <div key={group.label} className="nav-subgroup">
+                    <span className="nav-subgroup-label">{group.label}</span>
+                    {group.tabs.map((tab) => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        className={`nav-subitem${activeInventorySubTab === tab.id && isInventoryActive ? ' active' : ''}`}
+                        onClick={() => handleNavigate(`inventory:${tab.id}`)}
+                      >
+                        <span>{tab.icon}</span>
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          )}
+          {visibleProcurementTabs.length > 0 && (
           <div className="nav-dropdown">
             <button
               type="button"
@@ -395,7 +508,7 @@ function App() {
             </button>
             {procurementOpen && (
               <div className="nav-dropdown-menu">
-                {PROCUREMENT_TABS.map((tab) => (
+                {visibleProcurementTabs.map((tab) => (
                   <button
                     key={tab.id}
                     type="button"
@@ -409,6 +522,8 @@ function App() {
               </div>
             )}
           </div>
+          )}
+          {visibleSalesTabs.length > 0 && (
           <div className="nav-dropdown">
             <button
               type="button"
@@ -421,7 +536,7 @@ function App() {
             </button>
             {salesOpen && (
               <div className="nav-dropdown-menu">
-                {SALES_TABS.map((tab) => (
+                {visibleSalesTabs.map((tab) => (
                   <button
                     key={tab.id}
                     type="button"
@@ -435,6 +550,8 @@ function App() {
               </div>
             )}
           </div>
+          )}
+          {visibleHrTabs.length > 0 && (
           <div className="nav-dropdown">
             <button
               type="button"
@@ -447,7 +564,7 @@ function App() {
             </button>
             {hrOpen && (
               <div className="nav-dropdown-menu">
-                {HR_TABS.map((tab) => (
+                {visibleHrTabs.map((tab) => (
                   <button
                     key={tab.id}
                     type="button"
@@ -461,6 +578,8 @@ function App() {
               </div>
             )}
           </div>
+          )}
+          {!hasPermission('admin.all') && (
           <div className="nav-dropdown">
             <button
               type="button"
@@ -487,6 +606,7 @@ function App() {
               </div>
             )}
           </div>
+          )}
           {visibleUserManagementTabs.length > 0 && (
             <div className="nav-dropdown">
               <button

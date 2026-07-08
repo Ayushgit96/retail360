@@ -94,6 +94,7 @@ const PERMISSION_DEFINITIONS = [
   { code: 'logs.view', name: 'View Logs', module: 'logs', description: 'View logs' },
   { code: 'logs.create', name: 'Create Logs', module: 'logs', description: 'Create log entries (e.g. frontend logging)' },
   { code: 'logs.delete', name: 'Delete Logs', module: 'logs', description: 'Delete logs' },
+  { code: 'hr.access', name: 'Access HR Module', module: 'hr', description: 'View and use HR module features' },
 ];
 
 async function seedPermissions() {

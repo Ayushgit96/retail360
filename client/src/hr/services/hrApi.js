@@ -15,6 +15,7 @@ export const hrEmployeesAPI = {
 
 export const hrAttendanceAPI = {
   getContext: () => api.get('/hr/attendance/context'),
+  getMarkDefaults: (employeeId) => api.get('/hr/attendance/mark-defaults', { params: { employee: employeeId } }),
   getAll: (params) => api.get('/hr/attendance', { params }),
   getSummary: (params) => api.get('/hr/attendance/summary', { params }),
   getTrend: (params) => api.get('/hr/attendance/trend', { params }),
@@ -56,6 +57,15 @@ export const hrHolidaysAPI = {
   create: (data) => api.post('/hr/holidays', data),
   update: (id, data) => api.put(`/hr/holidays/${id}`, data),
   delete: (id) => api.delete(`/hr/holidays/${id}`),
+};
+
+export const hrTasksAPI = {
+  getToday: (params) => api.get('/hr/tasks/today', { params }),
+  getAll: (params) => api.get('/hr/tasks', { params }),
+  create: (data) => api.post('/hr/tasks', data),
+  update: (id, data) => api.put(`/hr/tasks/${id}`, data),
+  updateStatus: (id, status) => api.patch(`/hr/tasks/${id}/status`, { status }),
+  delete: (id) => api.delete(`/hr/tasks/${id}`),
 };
 
 export default api;

@@ -23,8 +23,9 @@ function EmployeeContextGate({ children }) {
       <div className="ed-unlinked">
         <h2>Employee profile not linked</h2>
         <p>
-          Your login email must match an employee record in HR → Employee Master.
-          Ask HR to add or update your employee profile with the same email as your user account.
+          Sign in with your username, email, or employee name (as in HR → Employee Master).
+          Your account must exist in User Management, and your profile must match by email or name.
+          Ask HR to create your user with your name as the username if needed.
         </p>
       </div>
     );

@@ -5,6 +5,7 @@ import Attendance from './pages/Attendance';
 import LeaveManagement from './pages/LeaveManagement';
 import Payroll from './pages/Payroll';
 import Holidays from './pages/Holidays';
+import EmployeeTasks from './pages/EmployeeTasks';
 import './HrModule.css';
 import './styles/hrShared.css';
 
@@ -15,6 +16,8 @@ function HrModule({ subTab = 'hr-dashboard' }) {
         return <HrDashboard />;
       case 'employee-master':
         return <EmployeeMaster />;
+      case 'employee-tasks':
+        return <EmployeeTasks />;
       case 'attendance':
         return <Attendance />;
       case 'leave-management':

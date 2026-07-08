@@ -36,6 +36,24 @@ async function getEffectivePermissions(userId) {
   return codes;
 }
 
+async function getUserRoleCodes(userId) {
+  const user = await User.findById(userId)
+    .populate('roles', 'code')
+    .populate({ path: 'groups', populate: { path: 'roles', select: 'code' } })
+    .lean();
+  if (!user) return new Set();
+  const codes = new Set();
+  (user.roles || []).forEach((role) => {
+    if (role?.code) codes.add(String(role.code).toLowerCase());
+  });
+  (user.groups || []).forEach((group) => {
+    (group.roles || []).forEach((role) => {
+      if (role?.code) codes.add(String(role.code).toLowerCase());
+    });
+  });
+  return codes;
+}
+
 function authenticate(req, res, next) {
   if (shouldSkipAuth(req)) return next();
   const authHeader = req.headers.authorization;
@@ -63,9 +81,23 @@ function requirePermission(permissionCode) {
   };
 }
 
+function requireAdminOrRole(...roleCodes) {
+  const allowed = roleCodes.map((code) => String(code).toLowerCase());
+  return async (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+    const permissions = await getEffectivePermissions(req.user.id);
+    if (permissions.has('admin.all')) return next();
+    const userRoles = await getUserRoleCodes(req.user.id);
+    if (allowed.some((code) => userRoles.has(code))) return next();
+    return res.status(403).json({ error: 'Insufficient permissions' });
+  };
+}
+
 module.exports = {
   authenticate,
   requirePermission,
+  requireAdminOrRole,
   getEffectivePermissions,
+  getUserRoleCodes,
   JWT_SECRET
 };

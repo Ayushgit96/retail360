@@ -65,8 +65,11 @@ async function getEmployeeDashboard(userId) {
     }).lean(),
     EmployeeTask.find({
       employee: employeeId,
-      dueDate: { $gte: todayStart, $lte: todayEnd },
       status: { $ne: 'Completed' },
+      $or: [
+        { dueDate: { $gte: todayStart, $lte: todayEnd } },
+        { startDate: { $lte: todayEnd }, dueDate: { $gte: todayStart } },
+      ],
     })
       .sort({ priority: -1, createdAt: 1 })
       .lean(),

@@ -229,6 +229,13 @@
   flex-wrap: wrap;
 }
 
+.hr-task-desc-inline {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: #6b7280;
+  max-width: 280px;
+}
+
 .hr-status-badge {
   display: inline-block;
   padding: 0.25rem 0.65rem;
@@ -430,6 +437,18 @@
 .hr-form-group textarea {
   min-height: 80px;
   resize: vertical;
+}
+
+.hr-input-readonly {
+  background: #f3f4f6 !important;
+  color: #374151;
+  cursor: not-allowed;
+}
+
+.hr-field-hint {
+  font-size: 0.78rem;
+  color: #6b7280;
+  line-height: 1.35;
 }
 
 .hr-form-error {

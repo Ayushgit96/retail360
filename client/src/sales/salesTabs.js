@@ -2,10 +2,10 @@ export const SALES_GROUPS = [
   {
     label: 'Sales',
     tabs: [
-      { id: 'sales-dashboard', label: 'Sales Dashboard', icon: '📊' },
-      { id: 'sales', label: 'Sales Report', icon: '📋' },
-      { id: 'shipments', label: 'Shipments', icon: '📦' },
-      { id: 'shipping-charges', label: 'Shipping Charges', icon: '💳' },
+      { id: 'sales-dashboard', label: 'Sales Dashboard', icon: '📊', permission: 'sales.view' },
+      { id: 'sales', label: 'Sales Report', icon: '📋', permission: 'sales.view' },
+      { id: 'shipments', label: 'Shipments', icon: '📦', permission: 'shipments.view' },
+      { id: 'shipping-charges', label: 'Shipping Charges', icon: '💳', permission: 'shippingCharges.view' },
     ],
   },
 ];

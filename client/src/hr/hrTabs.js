@@ -1,10 +1,11 @@
 export const HR_TABS = [
-  { id: 'hr-dashboard', label: 'HR Dashboard', icon: '📊' },
-  { id: 'employee-master', label: 'Employee Master', icon: '👥' },
-  { id: 'attendance', label: 'Attendance', icon: '🕐' },
-  { id: 'leave-management', label: 'Leave Management', icon: '📅' },
-  { id: 'payroll', label: 'Payroll', icon: '💰' },
-  { id: 'holidays', label: 'Holidays', icon: '🎉' },
+  { id: 'hr-dashboard', label: 'HR Dashboard', icon: '📊', permission: 'hr.access' },
+  { id: 'employee-master', label: 'Employee Master', icon: '👥', permission: 'hr.access' },
+  { id: 'employee-tasks', label: 'Employee Tasks', icon: '✅', permission: 'hr.access' },
+  { id: 'attendance', label: 'Attendance', icon: '🕐', permission: 'hr.access' },
+  { id: 'leave-management', label: 'Leave Management', icon: '📅', permission: 'hr.access' },
+  { id: 'payroll', label: 'Payroll', icon: '💰', permission: 'hr.access' },
+  { id: 'holidays', label: 'Holidays', icon: '🎉', permission: 'hr.access' },
 ];
 
 export const HR_TAB_IDS = HR_TABS.map((tab) => tab.id);

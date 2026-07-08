@@ -10,6 +10,33 @@ const {
   recordMatchesScope,
 } = require('../utils/attendanceAccess');
 
+const EMPLOYEE_POPULATE = { path: 'employee', select: 'employeeId firstName lastName department' };
+
+function parseInputDate(value, fallback = new Date()) {
+  if (!value) return startOfDay(fallback);
+  const date = startOfDay(value);
+  return Number.isNaN(date.getTime()) ? startOfDay(fallback) : date;
+}
+
+function buildActiveTodayQuery(todayStart, todayEnd) {
+  return {
+    status: { $ne: 'Completed' },
+    $or: [
+      { dueDate: { $gte: todayStart, $lte: todayEnd } },
+      { startDate: { $lte: todayEnd }, dueDate: { $gte: todayStart } },
+    ],
+  };
+}
+
+function buildTimelineOverlapQuery(fromDate, toDate) {
+  const rangeStart = startOfDay(fromDate);
+  const rangeEnd = endOfDay(toDate);
+  return {
+    startDate: { $lte: rangeEnd },
+    dueDate: { $gte: rangeStart },
+  };
+}
+
 router.get('/today', async (req, res) => {
   try {
     const scope = await resolveAttendanceScope(req);
@@ -19,14 +46,12 @@ router.get('/today', async (req, res) => {
 
     const todayStart = startOfDay(new Date());
     const todayEnd = endOfDay(new Date());
-    const query = {
-      dueDate: { $gte: todayStart, $lte: todayEnd },
-      status: { $ne: 'Completed' },
-    };
+    const query = buildActiveTodayQuery(todayStart, todayEnd);
     applyEmployeeScope(query, scope, req.query.employee);
 
     const tasks = await EmployeeTask.find(query)
-      .sort({ priority: -1, createdAt: 1 })
+      .populate(EMPLOYEE_POPULATE)
+      .sort({ priority: -1, dueDate: 1, createdAt: 1 })
       .lean();
     res.json(tasks);
   } catch (error) {
@@ -37,9 +62,15 @@ router.get('/today', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const scope = await resolveAttendanceScope(req);
-    const { status, page, limit } = req.query;
+    const { status, source, page, limit, fromDate, toDate } = req.query;
     const query = {};
+
     if (status) query.status = status;
+    if (source) query.source = source;
+    if (fromDate && toDate) {
+      Object.assign(query, buildTimelineOverlapQuery(fromDate, toDate));
+    }
+
     applyEmployeeScope(query, scope, req.query.employee);
 
     if (!scope.canManageAll && !scope.employeeId) {
@@ -49,13 +80,20 @@ router.get('/', async (req, res) => {
       return res.json([]);
     }
 
-    const sort = { dueDate: 1, priority: -1 };
+    const sort = { startDate: 1, dueDate: 1, priority: -1 };
     if (page || limit) {
-      const result = await paginate(EmployeeTask, query, { page, limit, sort });
+      const result = await paginate(EmployeeTask, query, {
+        page,
+        limit,
+        sort,
+        populate: EMPLOYEE_POPULATE,
+      });
       return res.json(result);
     }
 
-    const tasks = await EmployeeTask.find(query).sort(sort);
+    const tasks = await EmployeeTask.find(query)
+      .populate(EMPLOYEE_POPULATE)
+      .sort(sort);
     res.json(tasks);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -65,26 +103,93 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const scope = await resolveAttendanceScope(req);
-    if (!scope.canManageAll) {
-      return res.status(403).json({ error: 'Only HR or admin can assign tasks' });
+    const startDate = parseInputDate(req.body.startDate, req.body.dueDate || new Date());
+    const dueDate = parseInputDate(req.body.dueDate || req.body.startDate || new Date());
+
+    if (scope.canManageAll) {
+      const employee = await Employee.findById(req.body.employee);
+      if (!employee) {
+        return res.status(400).json({ error: 'Employee not found' });
+      }
+
+      const task = new EmployeeTask({
+        employee: req.body.employee,
+        title: req.body.title,
+        description: req.body.description || '',
+        startDate,
+        dueDate,
+        priority: req.body.priority || 'Medium',
+        source: 'HR',
+        assignedBy: req.body.assignedBy || 'HR',
+        status: 'Pending',
+      });
+      await task.save();
+      await task.populate(EMPLOYEE_POPULATE);
+      return res.status(201).json(task);
     }
 
-    const employee = await Employee.findById(req.body.employee);
-    if (!employee) {
-      return res.status(400).json({ error: 'Employee not found' });
+    if (!scope.employeeId) {
+      return res.status(403).json({ error: 'Employee profile not linked' });
     }
 
     const task = new EmployeeTask({
-      employee: req.body.employee,
+      employee: scope.employeeId,
       title: req.body.title,
       description: req.body.description || '',
-      dueDate: startOfDay(req.body.dueDate || new Date()),
+      startDate,
+      dueDate,
       priority: req.body.priority || 'Medium',
-      assignedBy: req.body.assignedBy || 'HR',
+      source: 'Personal',
+      assignedBy: 'Self',
       status: 'Pending',
     });
     await task.save();
     res.status(201).json(task);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.put('/:id', async (req, res) => {
+  try {
+    const scope = await resolveAttendanceScope(req);
+    const task = await EmployeeTask.findById(req.params.id);
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    if (!recordMatchesScope(task.employee, scope)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    if (!scope.canManageAll) {
+      if (task.source !== 'Personal') {
+        return res.status(403).json({ error: 'You can only edit your personal tasks' });
+      }
+      if (req.body.title != null) task.title = req.body.title;
+      if (req.body.description != null) task.description = req.body.description;
+      if (req.body.startDate != null) task.startDate = parseInputDate(req.body.startDate);
+      if (req.body.dueDate != null) task.dueDate = parseInputDate(req.body.dueDate);
+      if (req.body.priority != null) task.priority = req.body.priority;
+      if (req.body.status != null) {
+        task.status = req.body.status;
+        task.completedAt = req.body.status === 'Completed' ? new Date() : null;
+      }
+    } else {
+      if (req.body.title != null) task.title = req.body.title;
+      if (req.body.description != null) task.description = req.body.description;
+      if (req.body.startDate != null) task.startDate = parseInputDate(req.body.startDate);
+      if (req.body.dueDate != null) task.dueDate = parseInputDate(req.body.dueDate);
+      if (req.body.priority != null) task.priority = req.body.priority;
+      if (req.body.status != null) {
+        task.status = req.body.status;
+        task.completedAt = req.body.status === 'Completed' ? new Date() : null;
+      }
+    }
+
+    await task.save();
+    await task.populate(EMPLOYEE_POPULATE);
+    res.json(task);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -119,14 +224,25 @@ router.patch('/:id/status', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const scope = await resolveAttendanceScope(req);
-    if (!scope.canManageAll) {
-      return res.status(403).json({ error: 'Only HR or admin can delete tasks' });
-    }
-
-    const task = await EmployeeTask.findByIdAndDelete(req.params.id);
+    const task = await EmployeeTask.findById(req.params.id);
     if (!task) {
       return res.status(404).json({ error: 'Task not found' });
     }
+
+    if (scope.canManageAll) {
+      await EmployeeTask.findByIdAndDelete(req.params.id);
+      return res.json({ message: 'Task deleted' });
+    }
+
+    if (!recordMatchesScope(task.employee, scope)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    if (task.source !== 'Personal') {
+      return res.status(403).json({ error: 'You can only delete your personal tasks' });
+    }
+
+    await EmployeeTask.findByIdAndDelete(req.params.id);
     res.json({ message: 'Task deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });

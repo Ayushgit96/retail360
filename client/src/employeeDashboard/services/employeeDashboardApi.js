@@ -9,6 +9,7 @@ export const employeeTasksAPI = {
   getToday: () => api.get('/hr/tasks/today'),
   getAll: (params) => api.get('/hr/tasks', { params }),
   updateStatus: (id, status) => api.patch(`/hr/tasks/${id}/status`, { status }),
+  update: (id, data) => api.put(`/hr/tasks/${id}`, data),
   create: (data) => api.post('/hr/tasks', data),
   delete: (id) => api.delete(`/hr/tasks/${id}`),
 };
