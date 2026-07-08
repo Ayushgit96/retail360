@@ -10,6 +10,16 @@ const { computeCategoryTax } = require('../utils/taxRates');
 const { isUaeSalesLocation } = require('../utils/locationCurrency');
 const { deductSaleStockItems, restoreSaleStockItems } = require('../utils/saleStockUtils');
 const { requireAdminOrRole } = require('../middleware/auth');
+const {
+  SKU_COLUMN_KEYS,
+  QUANTITY_COLUMN_KEYS,
+  UNIT_PRICE_COLUMN_KEYS,
+  getImportCellValue,
+  parseExcelNumber,
+  resolveProductForImport,
+  mergeSaleItems,
+  parseImportSaleDate,
+} = require('../utils/saleImportUtils');
 
 const adminOnlyAccess = requireAdminOrRole('admin');
 
@@ -96,14 +106,13 @@ async function reverseSaleStock(saleDoc) {
   await restoreSaleStockItems(saleDoc.items, warehouseLocation);
 }
 
-async function buildSalePayloadFromImportGroup(entries) {
+async function buildSalePayloadFromImportGroup(entries, importContext = {}) {
   const SalesChannel = require('../models/SalesChannel');
   const SalesLocation = require('../models/SalesLocation');
-  const Product = require('../models/Product');
 
   const first = entries[0].row;
-  const channelCode = (first['Sales Channel Code *'] || '').toString().trim();
-  const locationCode = (first['Sales Location Code *'] || '').toString().trim();
+  const channelCode = (first['Sales Channel Code *'] || first['Sales Channel Code'] || '').toString().trim();
+  const locationCode = (first['Sales Location Code *'] || first['Sales Location Code'] || '').toString().trim();
 
   const channel = await SalesChannel.findOne({ code: channelCode });
   if (!channel) {
@@ -120,24 +129,52 @@ async function buildSalePayloadFromImportGroup(entries) {
 
   const items = [];
   const productDocs = [];
+  const rowErrors = [];
+  let productsCreated = 0;
+  const createdSkus = importContext.createdSkus || new Set();
+
   for (const { row, rowNum } of entries) {
-    const sku = (row['Product SKU *'] || '').toString().trim();
-    const quantity = parseFloat(row['Quantity *']);
-    const unitPrice = parseFloat(row['Unit Price *'] || row['Unit Price (Amount) *']);
+    const sku = getImportCellValue(row, SKU_COLUMN_KEYS).toString().trim();
+    const quantity = parseExcelNumber(getImportCellValue(row, QUANTITY_COLUMN_KEYS));
+    const unitPrice = parseExcelNumber(getImportCellValue(row, UNIT_PRICE_COLUMN_KEYS));
 
     if (!sku) {
-      throw new Error(`Row ${rowNum}: Product SKU is required`);
+      rowErrors.push({ row: rowNum, field: 'Product SKU', message: 'Product SKU is required — row skipped' });
+      continue;
     }
-    if (!quantity || quantity <= 0) {
-      throw new Error(`Row ${rowNum}: Quantity must be greater than 0`);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      rowErrors.push({
+        row: rowNum,
+        field: 'Quantity',
+        message: `Invalid quantity "${getImportCellValue(row, QUANTITY_COLUMN_KEYS)}" for SKU '${sku}' — row skipped`,
+      });
+      continue;
     }
-    if (Number.isNaN(unitPrice) || unitPrice < 0) {
-      throw new Error(`Row ${rowNum}: Unit Price must be a valid number`);
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+      rowErrors.push({
+        row: rowNum,
+        field: 'Unit Price',
+        message: `Invalid unit price for SKU '${sku}' — row skipped`,
+      });
+      continue;
     }
 
-    const product = await Product.findOne({ sku }).populate('category', 'name');
+    const { product, created } = await resolveProductForImport(sku, {
+      autoCreate: importContext.autoCreateProducts !== false,
+      createdSkus,
+    });
+
     if (!product) {
-      throw new Error(`Row ${rowNum}: Product SKU '${sku}' not found`);
+      rowErrors.push({
+        row: rowNum,
+        field: 'Product SKU',
+        message: `Product SKU '${sku}' not found — row skipped`,
+      });
+      continue;
+    }
+
+    if (created) {
+      productsCreated += 1;
     }
 
     productDocs.push(product);
@@ -149,50 +186,64 @@ async function buildSalePayloadFromImportGroup(entries) {
     });
   }
 
-  const defaultTaxRate = parseFloat(first['Default Tax Rate (%)']) || 0;
-  const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-  const discount = parseFloat(first['Discount']) || 0;
+  if (items.length === 0) {
+    throw new Error('No valid line items in this sale group');
+  }
+
+  const mergedItems = mergeSaleItems(items);
+  const mergedProductIds = new Set(mergedItems.map((item) => String(item.product)));
+  const mergedProductDocs = productDocs.filter(
+    (product, index, list) =>
+      mergedProductIds.has(String(product._id)) &&
+      list.findIndex((candidate) => String(candidate._id) === String(product._id)) === index
+  );
+
+  const defaultTaxRate = parseExcelNumber(first['Default Tax Rate (%)']) || 0;
+  const subtotal = mergedItems.reduce((sum, item) => sum + item.total, 0);
+  const discount = parseExcelNumber(first['Discount']) || 0;
   const taxCell = first['Tax (optional — auto if blank)'] ?? first['Tax'];
   const taxProvided =
     taxCell !== undefined && taxCell !== null && String(taxCell).trim() !== '';
   const tax = taxProvided
-    ? parseFloat(taxCell) || 0
-    : computeSaleTax(salesLocation, items, productDocs, { defaultTaxRate });
+    ? parseExcelNumber(taxCell) || 0
+    : computeSaleTax(salesLocation, mergedItems, mergedProductDocs, { defaultTaxRate });
   const taxFinal = isUaeSalesLocation(salesLocation) ? 0 : tax;
   const currency = SALES_CURRENCY;
-  const salesDate = first['Sales Date (YYYY-MM-DD)']
-    ? new Date(first['Sales Date (YYYY-MM-DD)'])
-    : new Date();
+  const salesDate = parseImportSaleDate(first['Sales Date (YYYY-MM-DD)'] || first['Sales Date']);
 
   return {
-    salesChannel: channel._id,
-    salesLocation: salesLocation._id,
-    warehouseLocation: salesLocation.location._id || salesLocation.location,
-    currency,
-    customer: {
-      name: first['Customer Name'] || '',
-      email: first['Customer Email'] || '',
-      phone: first['Customer Phone'] || '',
-      address: first['Customer Address'] || '',
+    payload: {
+      salesChannel: channel._id,
+      salesLocation: salesLocation._id,
+      warehouseLocation: salesLocation.location._id || salesLocation.location,
+      currency,
+      customer: {
+        name: first['Customer Name'] || '',
+        email: first['Customer Email'] || '',
+        phone: first['Customer Phone'] || '',
+        address: first['Customer Address'] || '',
+      },
+      amazonOrderId: (first['Amazon Order ID'] || '').toString().trim(),
+      salesDate,
+      items: mergedItems,
+      subtotal,
+      discount,
+      defaultTaxRate,
+      tax: taxFinal,
+      total: subtotal - discount + taxFinal,
+      paymentStatus: (first['Payment Status (pending/paid/partial)'] || first['Payment Status'] || 'pending')
+        .toString()
+        .trim()
+        .toLowerCase(),
+      orderStatus: (first['Order Status (pending/confirmed/shipped/delivered/cancelled)'] || first['Order Status'] || 'pending')
+        .toString()
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ''),
+      notes: first['Notes'] || '',
     },
-    amazonOrderId: (first['Amazon Order ID'] || '').toString().trim(),
-    salesDate,
-    items,
-    subtotal,
-    discount,
-    defaultTaxRate,
-    tax: taxFinal,
-    total: subtotal - discount + taxFinal,
-    paymentStatus: (first['Payment Status (pending/paid/partial)'] || 'pending')
-      .toString()
-      .trim()
-      .toLowerCase(),
-    orderStatus: (first['Order Status (pending/confirmed/shipped/delivered/cancelled)'] || 'pending')
-      .toString()
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, ''),
-    notes: first['Notes'] || '',
+    rowErrors,
+    productsCreated,
   };
 }
 
@@ -411,28 +462,61 @@ router.post('/import', upload.single('file'), async (req, res) => {
     const groups = new Map();
     const errors = [];
 
+    let fileQuantityTotal = 0;
+    rows.forEach((row) => {
+      const quantity = parseExcelNumber(getImportCellValue(row, QUANTITY_COLUMN_KEYS));
+      if (Number.isFinite(quantity) && quantity > 0) {
+        fileQuantityTotal += quantity;
+      }
+    });
+
     rows.forEach((row, idx) => {
       const rowNum = idx + 2;
-      const ref = (row['Sale Reference *'] || '').toString().trim();
-      if (!ref) {
-        errors.push({ row: rowNum, field: 'Sale Reference *', message: 'Sale Reference is required' });
+      const ref = (row['Sale Reference *'] || row['Sale Reference'] || '').toString().trim();
+      const amazonId = (row['Amazon Order ID'] || '').toString().trim();
+      // Group by Amazon Order ID when present so multi-line orders (same order,
+      // several product rows) combine into ONE sale instead of overwriting each
+      // other. Fall back to Sale Reference when there is no Amazon Order ID.
+      const groupKey = amazonId || ref;
+      if (!groupKey) {
+        errors.push({
+          row: rowNum,
+          field: 'Sale Reference *',
+          message: 'Sale Reference or Amazon Order ID is required',
+        });
         return;
       }
-      if (!groups.has(ref)) {
-        groups.set(ref, []);
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, []);
       }
-      groups.get(ref).push({ row, rowNum });
+      groups.get(groupKey).push({ row, rowNum });
     });
 
     let imported = 0;
     let updated = 0;
     let skipped = 0;
     let failed = 0;
+    let productsCreated = 0;
+    let lineItemsSkipped = 0;
+    let importedQuantityTotal = 0;
     const fileAmazonOrderIds = new Map();
+    const createdSkus = new Set();
 
     for (const [ref, entries] of groups) {
       try {
-        const payload = await buildSalePayloadFromImportGroup(entries);
+        const { payload, rowErrors, productsCreated: groupProductsCreated } =
+          await buildSalePayloadFromImportGroup(entries, { createdSkus });
+        productsCreated += groupProductsCreated;
+        if (rowErrors.length > 0) {
+          lineItemsSkipped += rowErrors.length;
+          errors.push(...rowErrors.map((entry) => ({
+            row: entry.row,
+            field: entry.field,
+            message: `Sale '${ref}': ${entry.message}`,
+          })));
+        }
+
+        const saleItemQuantity = payload.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
         const amazonOrderId = payload.amazonOrderId;
 
         if (amazonOrderId && fileAmazonOrderIds.has(amazonOrderId)) {
@@ -478,6 +562,7 @@ router.post('/import', upload.single('file'), async (req, res) => {
           existing.notes = payload.notes;
           await existing.save();
           updated += 1;
+          importedQuantityTotal += saleItemQuantity;
           continue;
         }
 
@@ -493,6 +578,7 @@ router.post('/import', upload.single('file'), async (req, res) => {
         delete sale.warehouseLocation;
         await sale.save();
         imported += 1;
+        importedQuantityTotal += saleItemQuantity;
       } catch (err) {
         failed += 1;
         errors.push({ row: entries[0].rowNum, field: `Sale '${ref}'`, message: err.message });
@@ -504,6 +590,11 @@ router.post('/import', upload.single('file'), async (req, res) => {
       updated,
       skipped,
       failed,
+      productsCreated,
+      lineItemsSkipped,
+      fileQuantityTotal,
+      importedQuantityTotal,
+      missingQuantity: Math.max(0, fileQuantityTotal - importedQuantityTotal),
       totalRows: rows.length,
       processed: imported + updated + failed + skipped,
       errorSummary: buildImportErrorSummary(errors),

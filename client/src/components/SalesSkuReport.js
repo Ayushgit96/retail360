@@ -11,7 +11,7 @@ import './SalesSkuReport.css';
 
 const formatAed = (amount) => formatMoney(amount, 'AED');
 const defaultFilters = () => ({
-  startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0],
+  startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString().split('T')[0],
   endDate: new Date().toISOString().split('T')[0],
   salesChannel: '',
   paymentStatus: '',
@@ -404,7 +404,21 @@ function SalesSkuReport({ onClose }) {
     const imported = result?.imported || 0;
     const updated = result?.updated || 0;
     const failed = result?.failed || 0;
+    const lineItemsSkipped = result?.lineItemsSkipped || 0;
+    const productsCreated = result?.productsCreated || 0;
     const notUploaded = failed + (result?.skipped || 0);
+
+    if (lineItemsSkipped > 0 || productsCreated > 0) {
+      const parts = [];
+      if (productsCreated > 0) {
+        parts.push(`${productsCreated} new product(s) were auto-created from missing SKUs`);
+      }
+      if (lineItemsSkipped > 0) {
+        parts.push(`${lineItemsSkipped} line item(s) were skipped — check the import summary for details`);
+      }
+      parts.push('If totals still look low, widen the Sales Report date filter to include your import dates');
+      alert(parts.join('. ') + '.');
+    }
 
     if (notUploaded === 0 && (imported > 0 || updated > 0)) {
       setShowExcelUpload(false);

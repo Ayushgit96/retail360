@@ -371,7 +371,43 @@ const ExcelUpload = ({
                     <span className="stat-value">{totals.skipped}</span>
                   </div>
                 )}
+                {result.productsCreated > 0 && (
+                  <div className="stat-item info">
+                    <span className="stat-label">Products created</span>
+                    <span className="stat-value">{result.productsCreated}</span>
+                  </div>
+                )}
+                {result.lineItemsSkipped > 0 && (
+                  <div className="stat-item error">
+                    <span className="stat-label">Line items skipped</span>
+                    <span className="stat-value">{result.lineItemsSkipped}</span>
+                  </div>
+                )}
+                {result.fileQuantityTotal != null && (
+                  <div className="stat-item info">
+                    <span className="stat-label">Excel qty total</span>
+                    <span className="stat-value">{result.fileQuantityTotal}</span>
+                  </div>
+                )}
+                {result.importedQuantityTotal != null && (
+                  <div className="stat-item success">
+                    <span className="stat-label">Imported qty</span>
+                    <span className="stat-value">{result.importedQuantityTotal}</span>
+                  </div>
+                )}
+                {result.missingQuantity > 0 && (
+                  <div className="stat-item error">
+                    <span className="stat-label">Missing qty</span>
+                    <span className="stat-value">{result.missingQuantity}</span>
+                  </div>
+                )}
               </div>
+
+              {result.missingQuantity > 0 && (
+                <p className="import-report-hint">
+                  {result.missingQuantity} unit(s) from your Excel file were not imported. Check failed rows and line-item errors below, fix them, and re-import.
+                </p>
+              )}
 
               {Object.keys(totals.errorSummary).length > 0 && (
                 <div className="errors-list errors-list-prominent">
