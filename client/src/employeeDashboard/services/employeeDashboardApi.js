@@ -15,8 +15,12 @@ export const employeeTasksAPI = {
 };
 
 export const employeeWorkLogsAPI = {
-  getToday: () => api.get('/hr/work-logs/today'),
-  getByDate: (date) => api.get('/hr/work-logs/by-date', { params: { date } }),
+  getToday: (employeeId) => api.get('/hr/work-logs/today', {
+    params: employeeId ? { employee: employeeId } : undefined,
+  }),
+  getByDate: (date, employeeId) => api.get('/hr/work-logs/by-date', {
+    params: { date, ...(employeeId ? { employee: employeeId } : {}) },
+  }),
   getAll: (params) => api.get('/hr/work-logs', { params }),
   save: (data) => api.post('/hr/work-logs', data),
   update: (id, data) => api.put(`/hr/work-logs/${id}`, data),

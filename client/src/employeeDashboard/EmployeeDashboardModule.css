@@ -687,6 +687,105 @@
   align-self: flex-start;
 }
 
+.ed-worklog-task-list-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.ed-worklog-task-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ed-worklog-task-list-header h3,
+.ed-worklog-add-section h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #334155;
+}
+
+.ed-worklog-task-list-header span {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.ed-worklog-no-tasks {
+  margin: 0;
+  padding: 0.75rem 0;
+}
+
+.ed-worklog-task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ed-worklog-task-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.ed-worklog-task-number {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.ed-worklog-task-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.ed-worklog-task-content strong {
+  font-size: 0.9rem;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.ed-worklog-task-content span {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.ed-worklog-add-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed #cbd5e1;
+}
+
+.ed-worklog-new-task-row {
+  grid-template-columns: minmax(200px, 1fr) auto auto;
+}
+
+.ed-worklog-add-task-btn {
+  align-self: end;
+  white-space: nowrap;
+}
+
 .ed-worklog-actions {
   display: flex;
   flex-wrap: wrap;
@@ -748,5 +847,19 @@
 
   .ed-form-row {
     grid-template-columns: 1fr;
+  }
+
+  .ed-worklog-entry-row,
+  .ed-worklog-new-task-row {
+    grid-template-columns: 1fr;
+  }
+
+  .ed-worklog-entry-time {
+    width: 100%;
+  }
+
+  .ed-worklog-add-task-btn,
+  .ed-worklog-remove {
+    width: 100%;
   }
 }

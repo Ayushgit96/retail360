@@ -12,10 +12,24 @@ const {
 
 const EMPLOYEE_POPULATE = { path: 'employee', select: 'employeeId firstName lastName department' };
 
-function parseLogDate(value, fallback = new Date()) {
+function parseCalendarDate(value, fallback = new Date()) {
   if (!value) return startOfDay(fallback);
+
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    const day = Number(match[3]);
+    return startOfDay(new Date(year, month, day));
+  }
+
   const date = startOfDay(value);
   return Number.isNaN(date.getTime()) ? startOfDay(fallback) : date;
+}
+
+function buildDayRangeQuery(dateValue) {
+  const dayStart = parseCalendarDate(dateValue);
+  return { $gte: dayStart, $lte: endOfDay(dayStart) };
 }
 
 function normalizeEntries(entries) {
@@ -39,8 +53,8 @@ function normalizeEntries(entries) {
 function buildDateRangeQuery(fromDate, toDate) {
   if (!fromDate && !toDate) return {};
   const query = {};
-  if (fromDate) query.$gte = startOfDay(fromDate);
-  if (toDate) query.$lte = endOfDay(toDate);
+  if (fromDate) query.$gte = parseCalendarDate(fromDate);
+  if (toDate) query.$lte = endOfDay(parseCalendarDate(toDate));
   if (Object.keys(query).length === 0) return {};
   return { date: query };
 }
@@ -52,7 +66,7 @@ router.get('/today', async (req, res) => {
       return res.json(null);
     }
 
-    const query = { date: startOfDay(new Date()) };
+    const query = { date: buildDayRangeQuery(new Date()) };
     applyEmployeeScope(query, scope, req.query.employee);
 
     const log = await DailyWorkLog.findOne(query).populate(EMPLOYEE_POPULATE).lean();
@@ -69,7 +83,7 @@ router.get('/by-date', async (req, res) => {
       return res.json(null);
     }
 
-    const query = { date: parseLogDate(req.query.date) };
+    const query = { date: buildDayRangeQuery(req.query.date) };
     applyEmployeeScope(query, scope, req.query.employee);
 
     const log = await DailyWorkLog.findOne(query).populate(EMPLOYEE_POPULATE).lean();
@@ -290,36 +304,57 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Add at least one work entry with description and time' });
     }
 
-    const logDate = parseLogDate(req.body.date);
+    const logDate = parseCalendarDate(req.body.date);
+    const dayRange = buildDayRangeQuery(req.body.date);
     const targetStatus = req.body.status === 'Submitted' ? 'Submitted' : 'Draft';
     let employeeId = scope.employeeId;
 
-    if (scope.canManageAll) {
-      if (!req.body.employee) {
-        return res.status(400).json({ error: 'Employee is required' });
+    if (req.body.employee) {
+      if (!scope.canManageAll && String(req.body.employee) !== String(scope.employeeId)) {
+        return res.status(403).json({ error: 'Access denied' });
       }
       const employee = await Employee.findById(req.body.employee);
       if (!employee) {
         return res.status(400).json({ error: 'Employee not found' });
       }
-      employeeId = req.body.employee;
+      employeeId = employee._id;
     }
 
     if (!employeeId) {
       return res.status(403).json({ error: 'Employee profile not linked' });
     }
 
-    let log = await DailyWorkLog.findOne({ employee: employeeId, date: logDate });
+    let log = await DailyWorkLog.findOne({
+      employee: employeeId,
+      date: dayRange,
+    }).sort({ updatedAt: -1 });
     let created = false;
 
     if (log) {
+      const previousEntryCount = log.entries?.length || 0;
+      const isAddingTasks = entries.length > previousEntryCount;
+
       if (!scope.canManageAll && log.status === 'Submitted') {
-        return res.status(403).json({ error: 'This day\'s work log is already submitted' });
+        if (entries.length < previousEntryCount) {
+          return res.status(403).json({ error: 'Submitted tasks cannot be removed or edited' });
+        }
+        if (!isAddingTasks && targetStatus === 'Submitted') {
+          return res.status(403).json({ error: 'This day\'s work log is already submitted' });
+        }
       }
+
+      log.date = logDate;
       log.entries = entries;
       log.notes = req.body.notes || '';
-      log.status = targetStatus;
+      log.status = (!scope.canManageAll && log.status === 'Submitted' && isAddingTasks && targetStatus === 'Draft')
+        ? 'Draft'
+        : targetStatus;
       await log.save();
+      await DailyWorkLog.deleteMany({
+        employee: employeeId,
+        date: dayRange,
+        _id: { $ne: log._id },
+      });
     } else {
       created = true;
       log = new DailyWorkLog({
