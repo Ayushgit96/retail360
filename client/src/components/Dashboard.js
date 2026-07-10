@@ -151,7 +151,7 @@ function Dashboard({ onNavigate }) {
 
   const statCards = [
     { tab: 'master:products', className: 'stat-card', icon: '📦', value: stats.totalProducts, label: 'Total Products' },
-    { tab: 'master:stock', className: 'stat-card warning', icon: '⚠️', value: stats.lowStockCount, label: 'Low Stock Items' },
+    { tab: 'master:stock', className: 'stat-card warning', icon: '⚠️', value: stats.lowStockCount, label: 'Out of Stock' },
     { tab: 'purchase-requisite', className: 'stat-card info', icon: '📝', value: stats.totalRequisitions, label: 'PR' },
     { tab: 'purchase-orders', className: 'stat-card info', icon: '📋', value: stats.pendingPOs, label: 'Pending POs' },
     { tab: 'grn', className: 'stat-card', icon: '📥', value: stats.totalGrns, label: 'GRN', style: { borderLeft: '4px solid #6B3894' } },
@@ -191,7 +191,7 @@ function Dashboard({ onNavigate }) {
 
       {lowStockItems.length > 0 && (
         <div className="low-stock-section">
-          <h2>Low Stock Alerts</h2>
+          <h2>Out of Stock Alerts</h2>
           <div className="low-stock-list">
             {lowStockItems.map((stockItem) => (
               <div key={stockItem._id} className="low-stock-item">
@@ -200,7 +200,7 @@ function Dashboard({ onNavigate }) {
                   {stockItem.location?.name || 'Unknown'}
                 </span>
                 <span className="stock-info">
-                  Stock: {stockItem.quantity} / Min: {stockItem.minStockLevel}
+                  Stock: {stockItem.quantity}
                 </span>
               </div>
             ))}

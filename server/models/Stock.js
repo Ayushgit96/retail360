@@ -17,11 +17,6 @@ const stockSchema = new mongoose.Schema({
     min: 0,
     required: true
   },
-  minStockLevel: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
   reservedQuantity: {
     type: Number,
     default: 0,

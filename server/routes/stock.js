@@ -45,7 +45,6 @@ function aggregateStockByProduct(stockRecords = []) {
         totalQuantity: 0,
         totalReserved: 0,
         soldCurrentMonth: 0,
-        totalMinStockLevel: 0,
         locationCount: 0,
         lastUpdated: record.lastUpdated,
         records: [],
@@ -56,7 +55,6 @@ function aggregateStockByProduct(stockRecords = []) {
     row.totalQuantity += record.quantity || 0;
     row.totalReserved += record.reservedQuantity || 0;
     row.soldCurrentMonth += record.soldCurrentMonth || 0;
-    row.totalMinStockLevel += record.minStockLevel || 0;
     row.locationCount += 1;
     row.records.push(record);
     if (record.lastUpdated && new Date(record.lastUpdated) > new Date(row.lastUpdated || 0)) {
@@ -165,12 +163,7 @@ router.get('/alerts/low-stock', async (req, res) => {
       .populate('location', 'name code city')
       .lean(); // Use lean() for better performance
     
-    // Filter for low stock: quantity <= minStockLevel (treat null minStockLevel as 0)
-    const lowStock = allStock.filter(item => {
-      const quantity = item.quantity || 0;
-      const minStockLevel = item.minStockLevel || 0;
-      return quantity <= minStockLevel;
-    });
+    const lowStock = allStock.filter((item) => (item.quantity || 0) === 0);
     
     // Sort by quantity ascending
     lowStock.sort((a, b) => (a.quantity || 0) - (b.quantity || 0));
@@ -192,7 +185,6 @@ const STOCK_EXPORT_HEADERS = [
   { key: 'location', label: 'Location' },
   { key: 'quantity', label: 'Quantity' },
   { key: 'soldCurrentMonth', label: 'Sold (Current Month)' },
-  { key: 'minStockLevel', label: 'Min Level' },
   { key: 'lastUpdated', label: 'Last Updated' },
 ];
 
@@ -202,7 +194,6 @@ const STOCK_BY_PRODUCT_EXPORT_HEADERS = [
   { key: 'locationCount', label: 'Locations' },
   { key: 'totalQuantity', label: 'Total Available' },
   { key: 'soldCurrentMonth', label: 'Sold (Current Month)' },
-  { key: 'totalMinStockLevel', label: 'Min Level (Total)' },
   { key: 'lastUpdated', label: 'Last Updated' },
 ];
 
@@ -213,7 +204,6 @@ function mapStockByProductExportRows(rows = []) {
     locationCount: row.locationCount ?? 0,
     totalQuantity: row.totalQuantity ?? 0,
     soldCurrentMonth: row.soldCurrentMonth ?? 0,
-    totalMinStockLevel: row.totalMinStockLevel ?? 0,
     lastUpdated: row.lastUpdated
       ? new Date(row.lastUpdated).toISOString().slice(0, 10)
       : '',
@@ -230,7 +220,6 @@ function mapStockToExportRows(stockRecords = []) {
       : (record.location?.name || ''),
     quantity: record.quantity ?? 0,
     soldCurrentMonth: record.soldCurrentMonth ?? 0,
-    minStockLevel: record.minStockLevel ?? 0,
     lastUpdated: record.lastUpdated
       ? new Date(record.lastUpdated).toISOString().slice(0, 10)
       : '',
@@ -320,7 +309,7 @@ router.get('/export', async (req, res) => {
 // POST create/update stock
 router.post('/', stockEditAccess, async (req, res) => {
   try {
-    const { product, location, quantity, minStockLevel } = req.body;
+    const { product, location, quantity } = req.body;
     
     const stock = await Stock.findOneAndUpdate(
       { product, location },
@@ -328,7 +317,6 @@ router.post('/', stockEditAccess, async (req, res) => {
         product,
         location,
         quantity: quantity || 0,
-        minStockLevel: minStockLevel || 0,
         lastUpdated: new Date()
       },
       { new: true, upsert: true, runValidators: true }
@@ -345,11 +333,10 @@ router.post('/', stockEditAccess, async (req, res) => {
 // PUT update stock quantity
 router.put('/:id', stockEditAccess, async (req, res) => {
   try {
-    const { quantity, minStockLevel, reservedQuantity } = req.body;
+    const { quantity, reservedQuantity } = req.body;
     const updateData = { lastUpdated: new Date() };
     
     if (quantity !== undefined) updateData.quantity = quantity;
-    if (minStockLevel !== undefined) updateData.minStockLevel = minStockLevel;
     if (reservedQuantity !== undefined) updateData.reservedQuantity = reservedQuantity;
     
     const stock = await Stock.findByIdAndUpdate(
@@ -409,8 +396,7 @@ router.get('/template', (req, res) => {
     const headers = [
       { key: 'product', label: 'Product SKU/Name *' },
       { key: 'location', label: 'Location Code/Name *' },
-      { key: 'quantity', label: 'Quantity *' },
-      { key: 'minStockLevel', label: 'Min Stock Level' }
+      { key: 'quantity', label: 'Quantity *' }
     ];
     
     const buffer = generateTemplate(headers);
@@ -450,7 +436,6 @@ router.post('/import', stockEditAccess, upload.single('file'), async (req, res) 
         const productSku = row['Product SKU/Name *'] || '';
         const locationCode = row['Location Code/Name *'] || '';
         const quantity = parseFloat(row['Quantity *']);
-        const minStockLevel = parseFloat(row['Min Stock Level']) || 0;
 
         if (!productSku || !locationCode || isNaN(quantity)) {
           errors.push({ row: rowNum, field: 'product/location/quantity', message: 'Product, Location, and Quantity are required', data: row });
@@ -490,7 +475,6 @@ router.post('/import', stockEditAccess, upload.single('file'), async (req, res) 
           product: product._id,
           location: location._id,
           quantity: quantity,
-          minStockLevel: minStockLevel,
           lastUpdated: new Date()
         };
 

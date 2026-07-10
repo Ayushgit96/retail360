@@ -78,7 +78,6 @@ function aggregateStockByProduct(stockRecords = []) {
         totalQuantity: 0,
         totalReserved: 0,
         soldCurrentMonth: 0,
-        totalMinStockLevel: 0,
         locationCount: 0,
         lastUpdated: record.lastUpdated,
         records: [],
@@ -89,7 +88,6 @@ function aggregateStockByProduct(stockRecords = []) {
     row.totalQuantity += record.quantity || 0;
     row.totalReserved += record.reservedQuantity || 0;
     row.soldCurrentMonth += getSoldCurrentMonth(record);
-    row.totalMinStockLevel += record.minStockLevel || 0;
     row.locationCount += 1;
     row.records.push(record);
     if (record.lastUpdated && new Date(record.lastUpdated) > new Date(row.lastUpdated || 0)) {
@@ -127,7 +125,6 @@ function Stock() {
     product: '',
     location: '',
     quantity: 0,
-    minStockLevel: 0,
   });
   const [lowStockAlerts, setLowStockAlerts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -235,7 +232,6 @@ function Stock() {
       product: '',
       location: '',
       quantity: 0,
-      minStockLevel: 0,
     });
     setShowAddModal(true);
   };
@@ -244,9 +240,7 @@ function Stock() {
     const { name, value } = e.target;
     setNewStockFormData((prev) => ({
       ...prev,
-      [name]: name === 'quantity' || name === 'minStockLevel' 
-        ? parseFloat(value) || 0 
-        : value,
+      [name]: name === 'quantity' ? parseFloat(value) || 0 : value,
     }));
   };
 
@@ -286,7 +280,6 @@ function Stock() {
         product: newStockFormData.product,
         location: newStockFormData.location,
         quantity: newStockFormData.quantity,
-        minStockLevel: newStockFormData.minStockLevel || 0,
       });
 
       setShowAddModal(false);
@@ -294,7 +287,6 @@ function Stock() {
         product: '',
         location: '',
         quantity: 0,
-        minStockLevel: 0,
       });
       refreshStock();
       alert('Stock added successfully');
@@ -367,7 +359,6 @@ function Stock() {
     try {
       await stockAPI.update(adjustingStock._id, {
         quantity: adjustQuantity,
-        minStockLevel: adjustingStock.minStockLevel,
       });
       setShowAdjustModal(false);
       setAdjustingStock(null);
@@ -430,11 +421,11 @@ function Stock() {
       );
       const totalQuantity = productStockRows.reduce((sum, row) => sum + (row.totalQuantity || 0), 0);
       const totalReserved = productStockRows.reduce((sum, row) => sum + (row.totalReserved || 0), 0);
-      const lowStockCount = productStockRows.filter(
-        (row) => (row.totalQuantity || 0) <= (row.totalMinStockLevel || 0)
+      const outOfStockCount = productStockRows.filter(
+        (row) => (row.totalQuantity || 0) === 0
       ).length;
 
-      return { recordCount, totalSoldCurrentMonth, totalQuantity, totalReserved, lowStockCount };
+      return { recordCount, totalSoldCurrentMonth, totalQuantity, totalReserved, outOfStockCount };
     }
 
     const recordCount = filteredLocationStock.length;
@@ -444,11 +435,11 @@ function Stock() {
     );
     const totalQuantity = filteredLocationStock.reduce((sum, record) => sum + (record.quantity || 0), 0);
     const totalReserved = filteredLocationStock.reduce((sum, record) => sum + (record.reservedQuantity || 0), 0);
-    const lowStockCount = filteredLocationStock.filter(
-      (record) => (record.quantity || 0) <= (record.minStockLevel || 0)
+    const outOfStockCount = filteredLocationStock.filter(
+      (record) => (record.quantity || 0) === 0
     ).length;
 
-    return { recordCount, totalSoldCurrentMonth, totalQuantity, totalReserved, lowStockCount };
+    return { recordCount, totalSoldCurrentMonth, totalQuantity, totalReserved, outOfStockCount };
   }, [isProductView, productStockRows, filteredLocationStock]);
 
   const getSummaryScopeLabel = () => (
@@ -578,11 +569,11 @@ function Stock() {
               <span className="stock-stat-label">Reserved</span>
             </div>
           )}
-          <div className={`stock-stat${stockSummary.lowStockCount > 0 ? ' stock-stat-warning' : ''}`}>
+          <div className={`stock-stat${stockSummary.outOfStockCount > 0 ? ' stock-stat-warning' : ''}`}>
             <span className="stock-stat-value">
-              {loading ? '—' : stockSummary.lowStockCount.toLocaleString()}
+              {loading ? '—' : stockSummary.outOfStockCount.toLocaleString()}
             </span>
-            <span className="stock-stat-label">Low Stock Items</span>
+            <span className="stock-stat-label">Out of Stock</span>
           </div>
         </div>
       </div>
@@ -590,16 +581,14 @@ function Stock() {
       {/* Low Stock Alerts */}
       {lowStockAlerts.length > 0 && (
         <div className="low-stock-alerts">
-          <h3>⚠️ Low Stock Alerts</h3>
+          <h3>⚠️ Out of Stock Alerts</h3>
           <div className="alerts-list">
             {lowStockAlerts.slice(0, 5).map((alert) => (
               <div key={alert._id} className="alert-item">
                 <span>
                   {alert.product?.name || alert.product?.title} - {alert.location?.name}
                 </span>
-                <span>
-                  Stock: {alert.quantity} / Min: {alert.minStockLevel}
-                </span>
+                <span>Stock: {alert.quantity}</span>
               </div>
             ))}
           </div>
@@ -621,7 +610,6 @@ function Stock() {
                     <th>Locations</th>
                     <th>Total Available</th>
                     <th>Sold ({currentMonthLabel})</th>
-                    <th>Min Level</th>
                     <th>Last Updated</th>
                   </>
                 ) : (
@@ -629,7 +617,6 @@ function Stock() {
                     <th>Location</th>
                     <th>Quantity</th>
                     <th>Sold ({currentMonthLabel})</th>
-                    <th>Min Level</th>
                     <th>Last Updated</th>
                     <th>Actions</th>
                   </>
@@ -639,7 +626,7 @@ function Stock() {
             <tbody>
               {displayRows.length === 0 ? (
                 <tr>
-                  <td colSpan={isProductView ? 7 : 8} className="no-data">
+                  <td colSpan={isProductView ? 6 : 7} className="no-data">
                     {searchTerm.trim()
                       ? 'No stock records match your search.'
                       : 'No stock records found'}
@@ -650,7 +637,7 @@ function Stock() {
                   <tr
                     key={row.productId}
                     className={`clickable-row${
-                      row.totalQuantity <= row.totalMinStockLevel ? ' low-stock' : ''
+                      row.totalQuantity === 0 ? ' low-stock' : ''
                     }`}
                     onClick={() => setViewingProductStock(row)}
                   >
@@ -669,7 +656,6 @@ function Stock() {
                     <td>{row.locationCount}</td>
                     <td>{row.totalQuantity}</td>
                     <td className="stock-sold-current-month">{row.soldCurrentMonth}</td>
-                    <td>{row.totalMinStockLevel}</td>
                     <td>
                       {row.lastUpdated
                         ? new Date(row.lastUpdated).toLocaleDateString()
@@ -682,9 +668,7 @@ function Stock() {
                   <tr
                     key={stockRecord._id}
                     className={`clickable-row${
-                      stockRecord.quantity <= stockRecord.minStockLevel
-                        ? ' low-stock'
-                        : ''
+                      stockRecord.quantity === 0 ? ' low-stock' : ''
                     }`}
                     onClick={() => setViewingStock(stockRecord)}
                   >
@@ -708,7 +692,6 @@ function Stock() {
                     </td>
                     <td>{stockRecord.quantity}</td>
                     <td className="stock-sold-current-month">{getSoldCurrentMonth(stockRecord)}</td>
-                    <td>{stockRecord.minStockLevel}</td>
                     <td>
                       {new Date(stockRecord.lastUpdated).toLocaleDateString()}
                     </td>
@@ -780,7 +763,6 @@ function Stock() {
               label: `Sold (${currentMonthLabel})`,
               value: getSoldCurrentMonth(viewingStock),
             },
-            { label: 'Min Stock Level', value: viewingStock.minStockLevel },
             {
               label: 'Last Updated',
               value: viewingStock.lastUpdated
@@ -819,7 +801,6 @@ function Stock() {
               <div><strong>Total Available:</strong> {viewingProductStock.totalQuantity}</div>
               <div><strong>Locations:</strong> {viewingProductStock.locationCount}</div>
               <div><strong>Sold ({currentMonthLabel}):</strong> {viewingProductStock.soldCurrentMonth}</div>
-              <div><strong>Min Level (Total):</strong> {viewingProductStock.totalMinStockLevel}</div>
             </div>
             <div className="stock-product-detail-table-wrap">
               <table className="stock-table stock-product-breakdown-table">
@@ -828,7 +809,6 @@ function Stock() {
                     <th>Location</th>
                     <th>Quantity</th>
                     <th>Sold ({currentMonthLabel})</th>
-                    <th>Min Level</th>
                     {canEdit && <th>Actions</th>}
                   </tr>
                 </thead>
@@ -843,7 +823,6 @@ function Stock() {
                       </td>
                       <td>{record.quantity}</td>
                       <td>{getSoldCurrentMonth(record)}</td>
-                      <td>{record.minStockLevel}</td>
                       {canEdit && (
                         <td className="stock-actions-cell">
                           <button
@@ -909,20 +888,6 @@ function Stock() {
                   value={adjustQuantity}
                   onChange={(e) => setAdjustQuantity(parseFloat(e.target.value) || 0)}
                   required
-                />
-              </div>
-              <div className="form-group">
-                <label>Min Stock Level</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={adjustingStock.minStockLevel}
-                  onChange={(e) =>
-                    setAdjustingStock({
-                      ...adjustingStock,
-                      minStockLevel: parseFloat(e.target.value) || 0,
-                    })
-                  }
                 />
               </div>
               <div className="form-actions">
@@ -997,16 +962,6 @@ function Stock() {
                   required
                 />
               </div>
-              <div className="form-group">
-                <label>Min Stock Level</label>
-                <input
-                  type="number"
-                  min="0"
-                  name="minStockLevel"
-                  value={newStockFormData.minStockLevel}
-                  onChange={handleNewStockInputChange}
-                />
-              </div>
               <div className="form-actions">
                 <button
                   type="button"
@@ -1016,7 +971,6 @@ function Stock() {
                       product: '',
                       location: '',
                       quantity: 0,
-                      minStockLevel: 0,
                     });
                   }}
                 >
